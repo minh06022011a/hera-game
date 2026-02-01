@@ -1,0 +1,267 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hera Game Hub</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 10px; }
+    .screen { display:none; }
+    .screen.active { display:block; }
+    .item { display:block; padding:12px; margin:8px 0; border:1px solid #444; border-radius:12px; }
+    .item:focus { outline: 3px solid #fff; }
+    .hint { font-size:12px; opacity:.85; margin-top:8px; line-height:1.4; }
+    canvas { border:1px solid #444; border-radius:12px; width: 100%; height: auto; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; }
+    .btn { padding:10px 12px; border:1px solid #444; border-radius:12px; display:inline-block; }
+    .btn:focus { outline: 3px solid #fff; }
+  </style>
+</head>
+<body>
+
+<!-- MENU -->
+<div id="menu" class="screen active">
+  <a class="item" href="#" data-go="xoMode">1) X/O (Tic Tac Toe)</a>
+  <a class="item" href="#" data-go="chess">2) Cờ vua (khung sẵn, làm sau)</a>
+  <a class="item" href="#" data-go="xiangqi">3) Cờ tướng (khung sẵn, làm sau)</a>
+  <a class="item" href="#" data-go="go">4) Cờ vây (khung sẵn, làm sau)</a>
+  <div class="hint">D-pad: chọn • OK: vào • RSK/Back: quay lại • LSK(Esc): menu</div>
+</div>
+
+<!-- X/O MODE SELECT -->
+<div id="xoMode" class="screen">
+  <div class="hint"><b>X/O</b> — chọn chế độ:</div>
+  <a class="item" href="#" data-xomode="local">1) 2 người chơi (cùng máy)</a>
+  <a class="item" href="#" data-xomode="bot">2) Chơi với bot (bot random)</a>
+  <div class="hint">OK: chọn • RSK/Back: về menu</div>
+</div>
+
+<!-- X/O GAME -->
+<div id="xo" class="screen">
+  <canvas id="cv" width="320" height="320"></canvas>
+  <div class="hint" id="status"></div>
+  <div class="hint">
+    OK: chọn/đánh • 1: New • 2: Undo • 0: Đổi chế độ • RSK/Back: về menu
+  </div>
+</div>
+
+<!-- PLACEHOLDERS -->
+<div id="chess" class="screen">
+  <div class="hint"><b>Cờ vua</b>: để chơi đúng luật + 2P local + bot 100 cấp, cần thêm “engine luật” (mình sẽ ráp tiếp cho bạn).</div>
+  <a class="item" href="#" data-go="menu">Quay về menu</a>
+</div>
+
+<div id="xiangqi" class="screen">
+  <div class="hint"><b>Cờ tướng</b>: tương tự cờ vua (cần luật + bot).</div>
+  <a class="item" href="#" data-go="menu">Quay về menu</a>
+</div>
+
+<div id="go" class="screen">
+  <div class="hint"><b>Cờ vây</b>: nên bắt đầu 9x9 trước, bot nhẹ.</div>
+  <a class="item" href="#" data-go="menu">Quay về menu</a>
+</div>
+
+<script>
+  // ===== Router + focus =====
+  const screens = {
+    menu: document.getElementById('menu'),
+    xoMode: document.getElementById('xoMode'),
+    xo: document.getElementById('xo'),
+    chess: document.getElementById('chess'),
+    xiangqi: document.getElementById('xiangqi'),
+    go: document.getElementById('go'),
+  };
+
+  function focusFirst(root) {
+    const f = root.querySelector('.item, .btn, canvas');
+    if (f) f.focus();
+  }
+
+  let currentScreen = 'menu';
+  function show(name) {
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[name].classList.add('active');
+    currentScreen = name;
+    focusFirst(screens[name]);
+  }
+
+  // make focusable
+  document.querySelectorAll('.item, .btn').forEach(el => el.setAttribute('tabindex','0'));
+
+  // global softkey-ish: Escape = menu/back
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      // LSK
+      if (currentScreen !== 'menu') { e.preventDefault(); show('menu'); }
+    }
+    if (e.key === 'Backspace') {
+      // RSK/back on many firmwares
+      if (currentScreen !== 'menu') { e.preventDefault(); show('menu'); }
+    }
+  });
+
+  document.body.addEventListener('click', (e) => {
+    const go = e.target.closest('[data-go]');
+    if (go) { e.preventDefault(); show(go.dataset.go); return; }
+
+    const xom = e.target.closest('[data-xomode]');
+    if (xom) { e.preventDefault(); startXO(xom.dataset.xomode); return; }
+  });
+
+  // Enter activates focused menu item
+  document.body.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const a = document.activeElement?.closest?.('[data-go]');
+    const b = document.activeElement?.closest?.('[data-xomode]');
+    if (a) { e.preventDefault(); a.click(); }
+    else if (b) { e.preventDefault(); b.click(); }
+  });
+
+  // ===== X/O =====
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const statusEl = document.getElementById('status');
+
+  let board, turn, cursor, history, xoMode; // xoMode: 'local' | 'bot'
+  const BOT_SIDE = 'O';
+
+  function cloneBoard(b) { return b.map(r => r.slice()); }
+
+  function resetXO() {
+    board = Array.from({length: 3}, () => Array(3).fill(null));
+    turn = 'X';
+    cursor = {x: 1, y: 1};
+    history = [];
+    renderXO();
+    statusEl.textContent = xoMode === 'local'
+      ? '2P Local: lượt X. D-pad di chuyển, OK đánh.'
+      : 'Vs Bot: bạn là X. D-pad di chuyển, OK đánh.';
+    cv.setAttribute('tabindex','0');
+    cv.focus();
+  }
+
+  function startXO(mode) {
+    xoMode = mode;
+    show('xo');
+    resetXO();
+  }
+
+  function checkWin(b) {
+    const lines = [];
+    for (let i=0;i<3;i++) {
+      lines.push([b[i][0],b[i][1],b[i][2]]);
+      lines.push([b[0][i],b[1][i],b[2][i]]);
+    }
+    lines.push([b[0][0],b[1][1],b[2][2]]);
+    lines.push([b[0][2],b[1][1],b[2][0]]);
+    for (const L of lines) {
+      if (L[0] && L[0]===L[1] && L[1]===L[2]) return L[0];
+    }
+    if (b.flat().every(Boolean)) return 'DRAW';
+    return null;
+  }
+
+  function emptyCells() {
+    const cells = [];
+    for (let y=0;y<3;y++) for (let x=0;x<3;x++) if (!board[y][x]) cells.push({x,y});
+    return cells;
+  }
+
+  function botMoveRandom() {
+    const cells = emptyCells();
+    if (!cells.length) return;
+    const pick = cells[Math.floor(Math.random()*cells.length)];
+    doMove(pick.x, pick.y);
+  }
+
+  function doMove(x,y) {
+    if (board[y][x]) return;
+    history.push({board: cloneBoard(board), turn, cursor: {...cursor}, xoMode});
+    board[y][x] = turn;
+    renderXO();
+
+    const w = checkWin(board);
+    if (w) {
+      statusEl.textContent = (w==='DRAW') ? 'Hòa! (1: New)' : `Thắng: ${w}! (1: New)`;
+      return;
+    }
+
+    turn = (turn === 'X') ? 'O' : 'X';
+    statusEl.textContent = (xoMode === 'local')
+      ? `2P Local: lượt ${turn}.`
+      : (turn === BOT_SIDE ? 'Bot đang nghĩ…' : 'Lượt bạn (X).');
+
+    // If vs bot and it's bot's turn, play random
+    if (xoMode === 'bot' && turn === BOT_SIDE) {
+      setTimeout(() => {
+        botMoveRandom();
+      }, 150);
+    }
+  }
+
+  function undo() {
+    const last = history.pop();
+    if (!last) return;
+    board = last.board;
+    turn = last.turn;
+    cursor = last.cursor;
+    xoMode = last.xoMode;
+    renderXO();
+    statusEl.textContent = `Undo. Lượt ${turn}.`;
+  }
+
+  function renderXO() {
+    const W = cv.width, H = cv.height;
+    ctx.clearRect(0,0,W,H);
+
+    // grid
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(W/3, 10); ctx.lineTo(W/3, H-10);
+    ctx.moveTo(2*W/3, 10); ctx.lineTo(2*W/3, H-10);
+    ctx.moveTo(10, H/3); ctx.lineTo(W-10, H/3);
+    ctx.moveTo(10, 2*H/3); ctx.lineTo(W-10, 2*H/3);
+    ctx.stroke();
+
+    // pieces
+    ctx.font = 'bold 80px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let y=0;y<3;y++) for (let x=0;x<3;x++) {
+      const v = board?.[y]?.[x];
+      if (!v) continue;
+      ctx.fillText(v, (x+0.5)*W/3, (y+0.5)*H/3);
+    }
+
+    // cursor
+    const cellW = W/3, cellH = H/3;
+    ctx.lineWidth = 6;
+    ctx.strokeRect(cursor.x*cellW + 6, cursor.y*cellH + 6, cellW - 12, cellH - 12);
+  }
+
+  cv.addEventListener('keydown', (e) => {
+    // navigation
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); cursor.x = (cursor.x+2)%3; renderXO(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); cursor.x = (cursor.x+1)%3; renderXO(); }
+    if (e.key === 'ArrowUp')    { e.preventDefault(); cursor.y = (cursor.y+2)%3; renderXO(); }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); cursor.y = (cursor.y+1)%3; renderXO(); }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // nếu vs bot và đang là lượt bot thì khóa input
+      if (xoMode === 'bot' && turn === BOT_SIDE) return;
+      doMove(cursor.x, cursor.y);
+    }
+
+    // shortcuts
+    if (e.key === '1') { e.preventDefault(); resetXO(); }
+    if (e.key === '2') { e.preventDefault(); undo(); }
+    if (e.key === '0') { e.preventDefault(); show('xoMode'); }
+    if (e.key === 'Backspace') { e.preventDefault(); show('menu'); }
+  });
+
+  // entry
+  show('menu');
+</script>
+</body>
+</html>
