@@ -8,13 +8,14 @@
     body { font-family: sans-serif; margin: 0; padding: 10px; }
     .screen { display:none; }
     .screen.active { display:block; }
-    .item { display:block; padding:12px; margin:8px 0; border:1px solid #444; border-radius:12px; }
-    .item:focus { outline: 3px solid #fff; }
-    .hint { font-size:12px; opacity:.85; margin-top:8px; line-height:1.4; }
+    .item { display:block; padding:12px; margin:8px 0; border:1px solid #444; border-radius:12px; text-decoration:none; color:inherit; }
+    .item:focus { outline: 3px solid #000; }
+    .hint { font-size:12px; opacity:.85; margin-top:8px; line-height:1.45; }
     canvas { border:1px solid #444; border-radius:12px; width: 100%; height: auto; }
     .row { display:flex; gap:8px; flex-wrap:wrap; }
     .btn { padding:10px 12px; border:1px solid #444; border-radius:12px; display:inline-block; }
-    .btn:focus { outline: 3px solid #fff; }
+    .btn:focus { outline: 3px solid #000; }
+    :focus { outline: 3px solid #000; }
   </style>
 </head>
 <body>
@@ -22,9 +23,9 @@
 <!-- MENU -->
 <div id="menu" class="screen active">
   <a class="item" href="#" data-go="xoMode">1) X/O (Tic Tac Toe)</a>
-  <a class="item" href="#" data-go="chess">2) Cờ vua (khung sẵn, làm sau)</a>
-  <a class="item" href="#" data-go="xiangqi">3) Cờ tướng (khung sẵn, làm sau)</a>
-  <a class="item" href="#" data-go="go">4) Cờ vây (khung sẵn, làm sau)</a>
+  <a class="item" href="#" data-go="chessMode">2) Cờ vua</a>
+  <a class="item" href="#" data-go="xiangqi">3) Cờ tướng (làm sau)</a>
+  <a class="item" href="#" data-go="go">4) Cờ vây (làm sau)</a>
   <div class="hint">D-pad: chọn • OK: vào • RSK/Back: quay lại • LSK(Esc): menu</div>
 </div>
 
@@ -38,28 +39,43 @@
 
 <!-- X/O GAME -->
 <div id="xo" class="screen">
-  <canvas id="cv" width="320" height="320"></canvas>
-  <div class="hint" id="status"></div>
+  <canvas id="cvXO" width="320" height="320"></canvas>
+  <div class="hint" id="statusXO"></div>
   <div class="hint">
     OK: chọn/đánh • 1: New • 2: Undo • 0: Đổi chế độ • RSK/Back: về menu
   </div>
 </div>
 
-<!-- PLACEHOLDERS -->
-<div id="chess" class="screen">
-  <div class="hint"><b>Cờ vua</b>: để chơi đúng luật + 2P local + bot 100 cấp, cần thêm “engine luật” (mình sẽ ráp tiếp cho bạn).</div>
-  <a class="item" href="#" data-go="menu">Quay về menu</a>
+<!-- CHESS MODE SELECT -->
+<div id="chessMode" class="screen">
+  <div class="hint"><b>Cờ vua</b> — chọn chế độ:</div>
+  <a class="item" href="#" data-chessmode="local">1) 2 người chơi (cùng máy)</a>
+  <a class="item" href="#" data-chessmode="bot">2) Chơi với bot (sắp làm 100 cấp)</a>
+  <div class="hint">OK: chọn • RSK/Back: về menu</div>
 </div>
 
+<!-- CHESS GAME -->
+<div id="chess" class="screen">
+  <canvas id="cvChess" width="320" height="320"></canvas>
+  <div class="hint" id="statusChess"></div>
+  <div class="hint" id="hintChess">
+    D-pad: di chuyển • OK: chọn quân / đi • 1: New • 2: Undo • 3: Lật bàn • 0: Đổi chế độ • RSK/Back: menu
+  </div>
+</div>
+
+<!-- PLACEHOLDERS -->
 <div id="xiangqi" class="screen">
-  <div class="hint"><b>Cờ tướng</b>: tương tự cờ vua (cần luật + bot).</div>
+  <div class="hint"><b>Cờ tướng</b>: sẽ dùng cùng kiểu điều khiển như cờ vua (D-pad + OK).</div>
   <a class="item" href="#" data-go="menu">Quay về menu</a>
 </div>
 
 <div id="go" class="screen">
-  <div class="hint"><b>Cờ vây</b>: nên bắt đầu 9x9 trước, bot nhẹ.</div>
+  <div class="hint"><b>Cờ vây</b>: nên bắt đầu 9x9 trước để nhẹ và dễ điều khiển.</div>
   <a class="item" href="#" data-go="menu">Quay về menu</a>
 </div>
+
+<!-- chess.js (luật cờ) -->
+<script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0/chess.min.js"></script>
 
 <script>
   // ===== Router + focus =====
@@ -67,6 +83,7 @@
     menu: document.getElementById('menu'),
     xoMode: document.getElementById('xoMode'),
     xo: document.getElementById('xo'),
+    chessMode: document.getElementById('chessMode'),
     chess: document.getElementById('chess'),
     xiangqi: document.getElementById('xiangqi'),
     go: document.getElementById('go'),
@@ -83,19 +100,20 @@
     screens[name].classList.add('active');
     currentScreen = name;
     focusFirst(screens[name]);
+    if (name === 'xo') resetXO();
+    if (name === 'chess') resetChess();
   }
 
   // make focusable
   document.querySelectorAll('.item, .btn').forEach(el => el.setAttribute('tabindex','0'));
 
-  // global softkey-ish: Escape = menu/back
+  // Softkey-ish behavior:
+  // Escape ~ LSK menu, Backspace ~ RSK back (tùy firmware)
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      // LSK
       if (currentScreen !== 'menu') { e.preventDefault(); show('menu'); }
     }
     if (e.key === 'Backspace') {
-      // RSK/back on many firmwares
       if (currentScreen !== 'menu') { e.preventDefault(); show('menu'); }
     }
   });
@@ -106,47 +124,51 @@
 
     const xom = e.target.closest('[data-xomode]');
     if (xom) { e.preventDefault(); startXO(xom.dataset.xomode); return; }
+
+    const chm = e.target.closest('[data-chessmode]');
+    if (chm) { e.preventDefault(); startChess(chm.dataset.chessmode); return; }
   });
 
-  // Enter activates focused menu item
+  // Enter activates focused item
   document.body.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     const a = document.activeElement?.closest?.('[data-go]');
     const b = document.activeElement?.closest?.('[data-xomode]');
+    const c = document.activeElement?.closest?.('[data-chessmode]');
     if (a) { e.preventDefault(); a.click(); }
     else if (b) { e.preventDefault(); b.click(); }
+    else if (c) { e.preventDefault(); c.click(); }
   });
 
   // ===== X/O =====
-  const cv = document.getElementById('cv');
-  const ctx = cv.getContext('2d');
-  const statusEl = document.getElementById('status');
+  const cvXO = document.getElementById('cvXO');
+  const ctxXO = cvXO.getContext('2d');
+  const statusXO = document.getElementById('statusXO');
 
-  let board, turn, cursor, history, xoMode; // xoMode: 'local' | 'bot'
+  let boardXO, turnXO, cursorXO, historyXO, xoMode; // xoMode: 'local' | 'bot'
   const BOT_SIDE = 'O';
 
   function cloneBoard(b) { return b.map(r => r.slice()); }
 
   function resetXO() {
-    board = Array.from({length: 3}, () => Array(3).fill(null));
-    turn = 'X';
-    cursor = {x: 1, y: 1};
-    history = [];
+    boardXO = Array.from({length: 3}, () => Array(3).fill(null));
+    turnXO = 'X';
+    cursorXO = {x: 1, y: 1};
+    historyXO = [];
     renderXO();
-    statusEl.textContent = xoMode === 'local'
+    statusXO.textContent = xoMode === 'local'
       ? '2P Local: lượt X. D-pad di chuyển, OK đánh.'
       : 'Vs Bot: bạn là X. D-pad di chuyển, OK đánh.';
-    cv.setAttribute('tabindex','0');
-    cv.focus();
+    cvXO.setAttribute('tabindex','0');
+    cvXO.focus();
   }
 
   function startXO(mode) {
     xoMode = mode;
     show('xo');
-    resetXO();
   }
 
-  function checkWin(b) {
+  function checkWinXO(b) {
     const lines = [];
     for (let i=0;i<3;i++) {
       lines.push([b[i][0],b[i][1],b[i][2]]);
@@ -161,102 +183,363 @@
     return null;
   }
 
-  function emptyCells() {
+  function emptyCellsXO() {
     const cells = [];
-    for (let y=0;y<3;y++) for (let x=0;x<3;x++) if (!board[y][x]) cells.push({x,y});
+    for (let y=0;y<3;y++) for (let x=0;x<3;x++) if (!boardXO[y][x]) cells.push({x,y});
     return cells;
   }
 
-  function botMoveRandom() {
-    const cells = emptyCells();
+  function botMoveRandomXO() {
+    const cells = emptyCellsXO();
     if (!cells.length) return;
     const pick = cells[Math.floor(Math.random()*cells.length)];
-    doMove(pick.x, pick.y);
+    doMoveXO(pick.x, pick.y);
   }
 
-  function doMove(x,y) {
-    if (board[y][x]) return;
-    history.push({board: cloneBoard(board), turn, cursor: {...cursor}, xoMode});
-    board[y][x] = turn;
+  function doMoveXO(x,y) {
+    if (boardXO[y][x]) return;
+    historyXO.push({board: cloneBoard(boardXO), turn: turnXO, cursor: {...cursorXO}, xoMode});
+    boardXO[y][x] = turnXO;
     renderXO();
 
-    const w = checkWin(board);
+    const w = checkWinXO(boardXO);
     if (w) {
-      statusEl.textContent = (w==='DRAW') ? 'Hòa! (1: New)' : `Thắng: ${w}! (1: New)`;
+      statusXO.textContent = (w==='DRAW') ? 'Hòa! (1: New)' : `Thắng: ${w}! (1: New)`;
       return;
     }
 
-    turn = (turn === 'X') ? 'O' : 'X';
-    statusEl.textContent = (xoMode === 'local')
-      ? `2P Local: lượt ${turn}.`
-      : (turn === BOT_SIDE ? 'Bot đang nghĩ…' : 'Lượt bạn (X).');
+    turnXO = (turnXO === 'X') ? 'O' : 'X';
+    statusXO.textContent = (xoMode === 'local')
+      ? `2P Local: lượt ${turnXO}.`
+      : (turnXO === BOT_SIDE ? 'Bot đang nghĩ…' : 'Lượt bạn (X).');
 
-    // If vs bot and it's bot's turn, play random
-    if (xoMode === 'bot' && turn === BOT_SIDE) {
-      setTimeout(() => {
-        botMoveRandom();
-      }, 150);
+    if (xoMode === 'bot' && turnXO === BOT_SIDE) {
+      setTimeout(() => botMoveRandomXO(), 150);
     }
   }
 
-  function undo() {
-    const last = history.pop();
+  function undoXO() {
+    const last = historyXO.pop();
     if (!last) return;
-    board = last.board;
-    turn = last.turn;
-    cursor = last.cursor;
+    boardXO = last.board;
+    turnXO = last.turn;
+    cursorXO = last.cursor;
     xoMode = last.xoMode;
     renderXO();
-    statusEl.textContent = `Undo. Lượt ${turn}.`;
+    statusXO.textContent = `Undo. Lượt ${turnXO}.`;
   }
 
   function renderXO() {
-    const W = cv.width, H = cv.height;
-    ctx.clearRect(0,0,W,H);
+    const W = cvXO.width, H = cvXO.height;
+    ctxXO.clearRect(0,0,W,H);
 
-    // grid
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(W/3, 10); ctx.lineTo(W/3, H-10);
-    ctx.moveTo(2*W/3, 10); ctx.lineTo(2*W/3, H-10);
-    ctx.moveTo(10, H/3); ctx.lineTo(W-10, H/3);
-    ctx.moveTo(10, 2*H/3); ctx.lineTo(W-10, 2*H/3);
-    ctx.stroke();
+    ctxXO.lineWidth = 4;
+    ctxXO.beginPath();
+    ctxXO.moveTo(W/3, 10); ctxXO.lineTo(W/3, H-10);
+    ctxXO.moveTo(2*W/3, 10); ctxXO.lineTo(2*W/3, H-10);
+    ctxXO.moveTo(10, H/3); ctxXO.lineTo(W-10, H/3);
+    ctxXO.moveTo(10, 2*H/3); ctxXO.lineTo(W-10, 2*H/3);
+    ctxXO.stroke();
 
-    // pieces
-    ctx.font = 'bold 80px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctxXO.font = 'bold 80px sans-serif';
+    ctxXO.textAlign = 'center';
+    ctxXO.textBaseline = 'middle';
     for (let y=0;y<3;y++) for (let x=0;x<3;x++) {
-      const v = board?.[y]?.[x];
+      const v = boardXO?.[y]?.[x];
       if (!v) continue;
-      ctx.fillText(v, (x+0.5)*W/3, (y+0.5)*H/3);
+      ctxXO.fillText(v, (x+0.5)*W/3, (y+0.5)*H/3);
     }
 
-    // cursor
     const cellW = W/3, cellH = H/3;
-    ctx.lineWidth = 6;
-    ctx.strokeRect(cursor.x*cellW + 6, cursor.y*cellH + 6, cellW - 12, cellH - 12);
+    ctxXO.lineWidth = 6;
+    ctxXO.strokeRect(cursorXO.x*cellW + 6, cursorXO.y*cellH + 6, cellW - 12, cellH - 12);
   }
 
-  cv.addEventListener('keydown', (e) => {
-    // navigation
-    if (e.key === 'ArrowLeft')  { e.preventDefault(); cursor.x = (cursor.x+2)%3; renderXO(); }
-    if (e.key === 'ArrowRight') { e.preventDefault(); cursor.x = (cursor.x+1)%3; renderXO(); }
-    if (e.key === 'ArrowUp')    { e.preventDefault(); cursor.y = (cursor.y+2)%3; renderXO(); }
-    if (e.key === 'ArrowDown')  { e.preventDefault(); cursor.y = (cursor.y+1)%3; renderXO(); }
+  cvXO.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); cursorXO.x = (cursorXO.x+2)%3; renderXO(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); cursorXO.x = (cursorXO.x+1)%3; renderXO(); }
+    if (e.key === 'ArrowUp')    { e.preventDefault(); cursorXO.y = (cursorXO.y+2)%3; renderXO(); }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); cursorXO.y = (cursorXO.y+1)%3; renderXO(); }
 
     if (e.key === 'Enter') {
       e.preventDefault();
-      // nếu vs bot và đang là lượt bot thì khóa input
-      if (xoMode === 'bot' && turn === BOT_SIDE) return;
-      doMove(cursor.x, cursor.y);
+      if (xoMode === 'bot' && turnXO === BOT_SIDE) return;
+      doMoveXO(cursorXO.x, cursorXO.y);
     }
 
-    // shortcuts
     if (e.key === '1') { e.preventDefault(); resetXO(); }
-    if (e.key === '2') { e.preventDefault(); undo(); }
+    if (e.key === '2') { e.preventDefault(); undoXO(); }
     if (e.key === '0') { e.preventDefault(); show('xoMode'); }
+    if (e.key === 'Backspace') { e.preventDefault(); show('menu'); }
+  });
+
+  // ===== CHESS (2P local) =====
+  const cvChess = document.getElementById('cvChess');
+  const ctxChess = cvChess.getContext('2d');
+  const statusChess = document.getElementById('statusChess');
+
+  let chessMode = 'local'; // 'local' | 'bot'(sau)
+  let chess, cursorC, selectedSq, legalTo, flip, pendingPromo;
+
+  const PIECE_UNI = {
+    wp:'♙', wn:'♘', wb:'♗', wr:'♖', wq:'♕', wk:'♔',
+    bp:'♟', bn:'♞', bb:'♝', br:'♜', bq:'♛', bk:'♚',
+  };
+
+  function startChess(mode) {
+    chessMode = mode;
+    show('chess');
+  }
+
+  function resetChess() {
+    if (typeof Chess === 'undefined') {
+      statusChess.textContent = 'Lỗi: không tải được chess.js. Thử refresh mạng / chờ tí rồi vào lại.';
+      return;
+    }
+    chess = new Chess();
+    cursorC = {x: 4, y: 6};      // gần quân trắng
+    selectedSq = null;
+    legalTo = new Set();
+    flip = false;
+    pendingPromo = null;
+    statusChess.textContent = 'Cờ vua 2P: Trắng đi trước. OK chọn quân.';
+    cvChess.setAttribute('tabindex','0');
+    cvChess.focus();
+    renderChess();
+  }
+
+  function xyToSquare(x,y) {
+    // x:0..7 file a..h, y:0..7 rank 8..1 (top->bottom)
+    const file = String.fromCharCode('a'.charCodeAt(0) + x);
+    const rank = 8 - y;
+    return file + rank;
+  }
+
+  function viewToBoardXY(vx, vy) {
+    // nếu flip = false: view==board
+    // nếu flip = true: đảo cả 2 trục
+    if (!flip) return {x: vx, y: vy};
+    return {x: 7 - vx, y: 7 - vy};
+  }
+
+  function boardToViewXY(bx, by) {
+    if (!flip) return {x: bx, y: by};
+    return {x: 7 - bx, y: 7 - by};
+  }
+
+  function getPieceAtView(vx, vy) {
+    const b = viewToBoardXY(vx, vy);
+    const sq = xyToSquare(b.x, b.y);
+    return chess.get(sq);
+  }
+
+  function refreshLegalMoves(fromSq) {
+    legalTo.clear();
+    const moves = chess.moves({ square: fromSq, verbose: true });
+    for (const m of moves) legalTo.add(m.to);
+  }
+
+  function setSelectionMaybe(vx, vy) {
+    const b = viewToBoardXY(vx, vy);
+    const sq = xyToSquare(b.x, b.y);
+    const p = chess.get(sq);
+    const turn = chess.turn(); // 'w' or 'b'
+    if (p && p.color === turn) {
+      selectedSq = sq;
+      refreshLegalMoves(selectedSq);
+    } else {
+      selectedSq = null;
+      legalTo.clear();
+    }
+  }
+
+  function tryMoveTo(vx, vy) {
+    const b = viewToBoardXY(vx, vy);
+    const toSq = xyToSquare(b.x, b.y);
+
+    // nếu đang chờ phong cấp
+    if (pendingPromo) return;
+
+    if (!selectedSq) {
+      setSelectionMaybe(vx, vy);
+      renderChess();
+      return;
+    }
+
+    // nếu bấm vào quân cùng màu -> đổi selection
+    const p = chess.get(toSq);
+    if (p && p.color === chess.turn()) {
+      selectedSq = toSq;
+      refreshLegalMoves(selectedSq);
+      renderChess();
+      return;
+    }
+
+    if (!legalTo.has(toSq)) {
+      // bấm sai ô: bỏ chọn
+      selectedSq = null;
+      legalTo.clear();
+      renderChess();
+      return;
+    }
+
+    // kiểm tra có phải nước phong cấp không
+    const moves = chess.moves({ square: selectedSq, verbose: true });
+    const cand = moves.find(m => m.to === toSq);
+    if (cand && cand.flags && cand.flags.includes('p')) {
+      pendingPromo = { from: selectedSq, to: toSq };
+      statusChess.textContent = 'Phong cấp: 1=Hậu(Q) 2=Xe(R) 3=Tượng(B) 4=Mã(N). Enter=Q';
+      renderChess();
+      return;
+    }
+
+    chess.move({ from: selectedSq, to: toSq });
+    selectedSq = null;
+    legalTo.clear();
+    updateChessStatus();
+    renderChess();
+  }
+
+  function doPromotion(key) {
+    if (!pendingPromo) return;
+    let promo = 'q';
+    if (key === '1') promo = 'q';
+    if (key === '2') promo = 'r';
+    if (key === '3') promo = 'b';
+    if (key === '4') promo = 'n';
+    chess.move({ from: pendingPromo.from, to: pendingPromo.to, promotion: promo });
+    pendingPromo = null;
+    selectedSq = null;
+    legalTo.clear();
+    updateChessStatus();
+    renderChess();
+  }
+
+  function updateChessStatus() {
+    if (chess.isGameOver()) {
+      if (chess.isCheckmate()) statusChess.textContent = 'Chiếu bí! (1: New, 2: Undo)';
+      else statusChess.textContent = 'Kết thúc ván (hòa). (1: New, 2: Undo)';
+      return;
+    }
+    const turn = (chess.turn() === 'w') ? 'Trắng' : 'Đen';
+    const chk = chess.isCheck() ? ' (đang bị chiếu)' : '';
+    statusChess.textContent = `Lượt: ${turn}${chk}. OK chọn quân.`;
+  }
+
+  function undoChess() {
+    if (!chess) return;
+    chess.undo();
+    pendingPromo = null;
+    selectedSq = null;
+    legalTo.clear();
+    updateChessStatus();
+    renderChess();
+  }
+
+  function renderChess() {
+    const W = cvChess.width, H = cvChess.height;
+    ctxChess.clearRect(0,0,W,H);
+
+    const cell = Math.floor(Math.min(W,H) / 8);
+    const offX = Math.floor((W - cell*8)/2);
+    const offY = Math.floor((H - cell*8)/2);
+
+    // board squares
+    for (let vy=0; vy<8; vy++) for (let vx=0; vx<8; vx++) {
+      const isDark = (vx + vy) % 2 === 1;
+      ctxChess.fillStyle = isDark ? '#b58863' : '#f0d9b5';
+      ctxChess.fillRect(offX + vx*cell, offY + vy*cell, cell, cell);
+    }
+
+    // highlight legal moves (dots)
+    if (selectedSq) {
+      for (const toSq of legalTo) {
+        // convert square -> view coords
+        const file = toSq.charCodeAt(0) - 'a'.charCodeAt(0);
+        const rank = parseInt(toSq[1],10);
+        const by = 8 - rank;
+        const bxy = {x:file, y:by};
+        const vxy = boardToViewXY(bxy.x, bxy.y);
+        const cx = offX + vxy.x*cell + cell/2;
+        const cy = offY + vxy.y*cell + cell/2;
+        ctxChess.fillStyle = 'rgba(0,0,0,0.25)';
+        ctxChess.beginPath();
+        ctxChess.arc(cx, cy, cell*0.12, 0, Math.PI*2);
+        ctxChess.fill();
+      }
+    }
+
+    // selected square highlight
+    if (selectedSq) {
+      const file = selectedSq.charCodeAt(0) - 'a'.charCodeAt(0);
+      const rank = parseInt(selectedSq[1],10);
+      const by = 8 - rank;
+      const vxy = boardToViewXY(file, by);
+      ctxChess.strokeStyle = '#2b6cb0';
+      ctxChess.lineWidth = 5;
+      ctxChess.strokeRect(offX + vxy.x*cell + 3, offY + vxy.y*cell + 3, cell - 6, cell - 6);
+    }
+
+    // cursor highlight
+    ctxChess.strokeStyle = '#111';
+    ctxChess.lineWidth = 5;
+    ctxChess.strokeRect(offX + cursorC.x*cell + 2, offY + cursorC.y*cell + 2, cell - 4, cell - 4);
+
+    // pieces
+    ctxChess.font = `bold ${Math.floor(cell*0.72)}px sans-serif`;
+    ctxChess.textAlign = 'center';
+    ctxChess.textBaseline = 'middle';
+    for (let by=0; by<8; by++) for (let bx=0; bx<8; bx++) {
+      const sq = xyToSquare(bx, by);
+      const p = chess.get(sq);
+      if (!p) continue;
+      const key = p.color + p.type;
+      const uni = PIECE_UNI[key];
+      const vxy = boardToViewXY(bx, by);
+      const cx = offX + vxy.x*cell + cell/2;
+      const cy = offY + vxy.y*cell + cell/2;
+      ctxChess.fillStyle = '#111';
+      ctxChess.fillText(uni, cx, cy+1);
+    }
+
+    // pending promotion box
+    if (pendingPromo) {
+      ctxChess.fillStyle = 'rgba(255,255,255,0.92)';
+      ctxChess.fillRect(10, 10, W-20, 52);
+      ctxChess.strokeStyle = '#111';
+      ctxChess.strokeRect(10, 10, W-20, 52);
+      ctxChess.fillStyle = '#111';
+      ctxChess.font = 'bold 16px sans-serif';
+      ctxChess.textAlign = 'left';
+      ctxChess.fillText('Phong cấp: 1=Q 2=R 3=B 4=N (Enter=Q)', 18, 42);
+    }
+  }
+
+  cvChess.addEventListener('keydown', (e) => {
+    if (!chess) return;
+
+    if (pendingPromo) {
+      if (['1','2','3','4'].includes(e.key)) { e.preventDefault(); doPromotion(e.key); }
+      if (e.key === 'Enter') { e.preventDefault(); doPromotion('1'); }
+      if (e.key === 'Backspace' || e.key === 'Escape') { e.preventDefault(); pendingPromo=null; updateChessStatus(); renderChess(); }
+      return;
+    }
+
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); cursorC.x = (cursorC.x+7)%8; renderChess(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); cursorC.x = (cursorC.x+1)%8; renderChess(); }
+    if (e.key === 'ArrowUp')    { e.preventDefault(); cursorC.y = (cursorC.y+7)%8; renderChess(); }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); cursorC.y = (cursorC.y+1)%8; renderChess(); }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // local 2P: cứ theo lượt, ai cầm máy bấm là đi
+      tryMoveTo(cursorC.x, cursorC.y);
+    }
+
+    if (e.key === '1') { e.preventDefault(); resetChess(); }
+    if (e.key === '2') { e.preventDefault(); undoChess(); }
+    if (e.key === '3') { e.preventDefault(); flip = !flip; renderChess(); }
+    if (e.key === '0') { e.preventDefault(); show('chessMode'); }
     if (e.key === 'Backspace') { e.preventDefault(); show('menu'); }
   });
 
