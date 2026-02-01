@@ -12,9 +12,6 @@
     .item:focus { outline: 3px solid #000; }
     .hint { font-size:12px; opacity:.85; margin-top:8px; line-height:1.45; }
     canvas { border:1px solid #444; border-radius:12px; width: 100%; height: auto; }
-    .row { display:flex; gap:8px; flex-wrap:wrap; }
-    .btn { padding:10px 12px; border:1px solid #444; border-radius:12px; display:inline-block; }
-    .btn:focus { outline: 3px solid #000; }
     :focus { outline: 3px solid #000; }
   </style>
 </head>
@@ -23,528 +20,795 @@
 <!-- MENU -->
 <div id="menu" class="screen active">
   <a class="item" href="#" data-go="xoMode">1) X/O (Tic Tac Toe)</a>
-  <a class="item" href="#" data-go="chessMode">2) Cờ vua</a>
+  <a class="item" href="#" data-go="chess">2) Cờ vua (2 người - đúng luật)</a>
   <a class="item" href="#" data-go="xiangqi">3) Cờ tướng (làm sau)</a>
   <a class="item" href="#" data-go="go">4) Cờ vây (làm sau)</a>
-  <div class="hint">D-pad: chọn • OK: vào • RSK/Back: quay lại • LSK(Esc): menu</div>
+  <div class="hint">D-pad: chọn • OK: vào • RSK/Back: menu • LSK(Esc): menu</div>
 </div>
 
-<!-- X/O MODE SELECT -->
+<!-- X/O MODE -->
 <div id="xoMode" class="screen">
   <div class="hint"><b>X/O</b> — chọn chế độ:</div>
   <a class="item" href="#" data-xomode="local">1) 2 người chơi (cùng máy)</a>
-  <a class="item" href="#" data-xomode="bot">2) Chơi với bot (bot random)</a>
-  <div class="hint">OK: chọn • RSK/Back: về menu</div>
+  <a class="item" href="#" data-xomode="bot">2) Chơi với bot (random)</a>
+  <div class="hint">OK: chọn • Back: về menu</div>
 </div>
 
 <!-- X/O GAME -->
 <div id="xo" class="screen">
   <canvas id="cvXO" width="320" height="320"></canvas>
   <div class="hint" id="statusXO"></div>
-  <div class="hint">
-    OK: chọn/đánh • 1: New • 2: Undo • 0: Đổi chế độ • RSK/Back: về menu
-  </div>
-</div>
-
-<!-- CHESS MODE SELECT -->
-<div id="chessMode" class="screen">
-  <div class="hint"><b>Cờ vua</b> — chọn chế độ:</div>
-  <a class="item" href="#" data-chessmode="local">1) 2 người chơi (cùng máy)</a>
-  <a class="item" href="#" data-chessmode="bot">2) Chơi với bot (sắp làm 100 cấp)</a>
-  <div class="hint">OK: chọn • RSK/Back: về menu</div>
+  <div class="hint">OK: đánh • 1: New • 2: Undo • 0: Đổi chế độ • Back: menu</div>
 </div>
 
 <!-- CHESS GAME -->
 <div id="chess" class="screen">
   <canvas id="cvChess" width="320" height="320"></canvas>
   <div class="hint" id="statusChess"></div>
-  <div class="hint" id="hintChess">
-    D-pad: di chuyển • OK: chọn quân / đi • 1: New • 2: Undo • 3: Lật bàn • 0: Đổi chế độ • RSK/Back: menu
+  <div class="hint">
+    D-pad: di chuyển • OK: chọn quân/đi • 1: New • 2: Undo • 3: Lật bàn • 0: Về menu
+    <br>Phong cấp: 1=Hậu(Q) 2=Xe(R) 3=Tượng(B) 4=Mã(N)
   </div>
 </div>
 
 <!-- PLACEHOLDERS -->
 <div id="xiangqi" class="screen">
-  <div class="hint"><b>Cờ tướng</b>: sẽ dùng cùng kiểu điều khiển như cờ vua (D-pad + OK).</div>
+  <div class="hint"><b>Cờ tướng</b>: làm sau (cùng kiểu điều khiển D-pad).</div>
   <a class="item" href="#" data-go="menu">Quay về menu</a>
 </div>
 
 <div id="go" class="screen">
-  <div class="hint"><b>Cờ vây</b>: nên bắt đầu 9x9 trước để nhẹ và dễ điều khiển.</div>
+  <div class="hint"><b>Cờ vây</b>: làm sau (bắt đầu 9x9).</div>
   <a class="item" href="#" data-go="menu">Quay về menu</a>
 </div>
 
-<!-- chess.js (luật cờ) -->
-<script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0/chess.min.js"></script>
-
 <script>
-  // ===== Router + focus =====
-  const screens = {
-    menu: document.getElementById('menu'),
-    xoMode: document.getElementById('xoMode'),
-    xo: document.getElementById('xo'),
-    chessMode: document.getElementById('chessMode'),
-    chess: document.getElementById('chess'),
-    xiangqi: document.getElementById('xiangqi'),
-    go: document.getElementById('go'),
+/* =========================
+   ROUTER + FOCUS + SOFTKEY
+========================= */
+const screens = {
+  menu: document.getElementById('menu'),
+  xoMode: document.getElementById('xoMode'),
+  xo: document.getElementById('xo'),
+  chess: document.getElementById('chess'),
+  xiangqi: document.getElementById('xiangqi'),
+  go: document.getElementById('go'),
+};
+
+function focusFirst(root) {
+  const f = root.querySelector('.item, canvas');
+  if (f) f.focus();
+}
+
+let currentScreen = 'menu';
+function show(name) {
+  Object.values(screens).forEach(s => s.classList.remove('active'));
+  screens[name].classList.add('active');
+  currentScreen = name;
+  focusFirst(screens[name]);
+  if (name === 'xo') resetXO();
+  if (name === 'chess') resetChess();
+}
+
+document.querySelectorAll('.item').forEach(el => el.setAttribute('tabindex','0'));
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { // LSK
+    if (currentScreen !== 'menu') { e.preventDefault(); show('menu'); }
+  }
+  if (e.key === 'Backspace') { // RSK/back (nhiều máy)
+    if (currentScreen !== 'menu') { e.preventDefault(); show('menu'); }
+  }
+});
+
+document.body.addEventListener('click', (e) => {
+  const go = e.target.closest('[data-go]');
+  if (go) { e.preventDefault(); show(go.dataset.go); return; }
+
+  const xom = e.target.closest('[data-xomode]');
+  if (xom) { e.preventDefault(); startXO(xom.dataset.xomode); return; }
+});
+
+document.body.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const a = document.activeElement?.closest?.('[data-go]');
+  const b = document.activeElement?.closest?.('[data-xomode]');
+  if (a) { e.preventDefault(); a.click(); }
+  else if (b) { e.preventDefault(); b.click(); }
+});
+
+/* =========================
+   X/O (TIC TAC TOE)
+========================= */
+const cvXO = document.getElementById('cvXO');
+const ctxXO = cvXO.getContext('2d');
+const statusXO = document.getElementById('statusXO');
+
+let boardXO, turnXO, cursorXO, historyXO, xoMode;
+const BOT_SIDE = 'O';
+
+function cloneBoardXO(b) { return b.map(r => r.slice()); }
+
+function startXO(mode) { xoMode = mode; show('xo'); }
+
+function resetXO() {
+  boardXO = Array.from({length: 3}, () => Array(3).fill(null));
+  turnXO = 'X';
+  cursorXO = {x: 1, y: 1};
+  historyXO = [];
+  renderXO();
+  statusXO.textContent = (xoMode === 'bot') ? 'Vs Bot: bạn là X.' : '2P Local: lượt X.';
+  cvXO.setAttribute('tabindex','0');
+  cvXO.focus();
+}
+
+function checkWinXO(b) {
+  const lines = [];
+  for (let i=0;i<3;i++) {
+    lines.push([b[i][0],b[i][1],b[i][2]]);
+    lines.push([b[0][i],b[1][i],b[2][i]]);
+  }
+  lines.push([b[0][0],b[1][1],b[2][2]]);
+  lines.push([b[0][2],b[1][1],b[2][0]]);
+  for (const L of lines) if (L[0] && L[0]===L[1] && L[1]===L[2]) return L[0];
+  if (b.flat().every(Boolean)) return 'DRAW';
+  return null;
+}
+
+function emptyCellsXO() {
+  const cells = [];
+  for (let y=0;y<3;y++) for (let x=0;x<3;x++) if (!boardXO[y][x]) cells.push({x,y});
+  return cells;
+}
+function botMoveRandomXO() {
+  const cells = emptyCellsXO();
+  if (!cells.length) return;
+  const pick = cells[Math.floor(Math.random()*cells.length)];
+  doMoveXO(pick.x, pick.y);
+}
+
+function doMoveXO(x,y) {
+  if (boardXO[y][x]) return;
+  historyXO.push({board: cloneBoardXO(boardXO), turn: turnXO, cursor: {...cursorXO}, xoMode});
+  boardXO[y][x] = turnXO;
+  renderXO();
+
+  const w = checkWinXO(boardXO);
+  if (w) {
+    statusXO.textContent = (w==='DRAW') ? 'Hòa! (1: New)' : `Thắng: ${w}! (1: New)`;
+    return;
+  }
+
+  turnXO = (turnXO === 'X') ? 'O' : 'X';
+  statusXO.textContent = (xoMode === 'bot')
+    ? (turnXO === BOT_SIDE ? 'Bot…' : 'Lượt bạn (X).')
+    : `2P Local: lượt ${turnXO}.`;
+
+  if (xoMode === 'bot' && turnXO === BOT_SIDE) setTimeout(botMoveRandomXO, 150);
+}
+
+function undoXO() {
+  const last = historyXO.pop();
+  if (!last) return;
+  boardXO = last.board;
+  turnXO = last.turn;
+  cursorXO = last.cursor;
+  xoMode = last.xoMode;
+  renderXO();
+  statusXO.textContent = `Undo. Lượt ${turnXO}.`;
+}
+
+function renderXO() {
+  const W = cvXO.width, H = cvXO.height;
+  ctxXO.clearRect(0,0,W,H);
+
+  ctxXO.lineWidth = 4;
+  ctxXO.beginPath();
+  ctxXO.moveTo(W/3, 10); ctxXO.lineTo(W/3, H-10);
+  ctxXO.moveTo(2*W/3, 10); ctxXO.lineTo(2*W/3, H-10);
+  ctxXO.moveTo(10, H/3); ctxXO.lineTo(W-10, H/3);
+  ctxXO.moveTo(10, 2*H/3); ctxXO.lineTo(W-10, 2*H/3);
+  ctxXO.stroke();
+
+  ctxXO.font = 'bold 80px sans-serif';
+  ctxXO.textAlign = 'center';
+  ctxXO.textBaseline = 'middle';
+  for (let y=0;y<3;y++) for (let x=0;x<3;x++) {
+    const v = boardXO[y][x];
+    if (!v) continue;
+    ctxXO.fillText(v, (x+0.5)*W/3, (y+0.5)*H/3);
+  }
+
+  const cellW = W/3, cellH = H/3;
+  ctxXO.lineWidth = 6;
+  ctxXO.strokeRect(cursorXO.x*cellW + 6, cursorXO.y*cellH + 6, cellW - 12, cellH - 12);
+}
+
+cvXO.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); cursorXO.x = (cursorXO.x+2)%3; renderXO(); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); cursorXO.x = (cursorXO.x+1)%3; renderXO(); }
+  if (e.key === 'ArrowUp')    { e.preventDefault(); cursorXO.y = (cursorXO.y+2)%3; renderXO(); }
+  if (e.key === 'ArrowDown')  { e.preventDefault(); cursorXO.y = (cursorXO.y+1)%3; renderXO(); }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (xoMode === 'bot' && turnXO === BOT_SIDE) return;
+    doMoveXO(cursorXO.x, cursorXO.y);
+  }
+  if (e.key === '1') { e.preventDefault(); resetXO(); }
+  if (e.key === '2') { e.preventDefault(); undoXO(); }
+  if (e.key === '0') { e.preventDefault(); show('xoMode'); }
+});
+
+/* =========================
+   CHESS (2P LOCAL, NO CDN)
+   - Đúng luật cơ bản: ăn, chiếu, chiếu bí, nhập thành, bắt tốt qua đường, phong cấp
+========================= */
+const cvChess = document.getElementById('cvChess');
+const ctxChess = cvChess.getContext('2d');
+const statusChess = document.getElementById('statusChess');
+
+const UNI = {
+  'P':'♙','N':'♘','B':'♗','R':'♖','Q':'♕','K':'♔',
+  'p':'♟','n':'♞','b':'♝','r':'♜','q':'♛','k':'♚',
+};
+
+function inBounds(x,y){ return x>=0 && x<8 && y>=0 && y<8; }
+function isWhitePiece(p){ return p && p === p.toUpperCase(); }
+function isBlackPiece(p){ return p && p === p.toLowerCase(); }
+function colorOf(p){ return isWhitePiece(p)?'w':(isBlackPiece(p)?'b':null); }
+
+function cloneState(s){
+  return {
+    board: s.board.map(r=>r.slice()),
+    turn: s.turn,
+    castle: {...s.castle},
+    ep: s.ep ? {...s.ep} : null,
+    half: s.half,
+    full: s.full
+  };
+}
+
+function initialState(){
+  const b = [
+    ['r','n','b','q','k','b','n','r'],
+    ['p','p','p','p','p','p','p','p'],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    ['P','P','P','P','P','P','P','P'],
+    ['R','N','B','Q','K','B','N','R'],
+  ];
+  return {
+    board: b,
+    turn: 'w',
+    castle: {K:true,Q:true,k:true,q:true},
+    ep: null,
+    half: 0,
+    full: 1
+  };
+}
+
+let S, cursorC, selected, legalSet, flip, pendingPromo, historyC;
+
+function resetChess(){
+  S = initialState();
+  cursorC = {x: 4, y: 6};
+  selected = null;
+  legalSet = new Set();
+  flip = false;
+  pendingPromo = null;
+  historyC = [];
+  statusChess.textContent = 'Cờ vua 2P: Trắng đi trước. OK chọn quân.';
+  cvChess.setAttribute('tabindex','0');
+  cvChess.focus();
+  renderChess();
+}
+
+function viewToBoard(x,y){
+  if (!flip) return {x,y};
+  return {x:7-x, y:7-y};
+}
+function boardToView(x,y){
+  if (!flip) return {x,y};
+  return {x:7-x, y:7-y};
+}
+function keyXY(x,y){ return x+','+y; }
+
+function findKing(state, color){
+  const k = (color==='w')?'K':'k';
+  for (let y=0;y<8;y++) for (let x=0;x<8;x++) if (state.board[y][x]===k) return {x,y};
+  return null;
+}
+
+function attackedBy(state, color, tx, ty){
+  // true nếu ô (tx,ty) bị color tấn công
+  const b = state.board;
+  const dir = (color==='w') ? -1 : 1;
+
+  // pawn attacks
+  const pawn = (color==='w')?'P':'p';
+  for (const dx of [-1,1]){
+    const x = tx - dx;
+    const y = ty - dir;
+    if (inBounds(x,y) && b[y][x]===pawn) return true;
+  }
+
+  // knight
+  const knight = (color==='w')?'N':'n';
+  const KOFF = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
+  for (const [dx,dy] of KOFF){
+    const x=tx-dx, y=ty-dy;
+    if (inBounds(x,y) && b[y][x]===knight) return true;
+  }
+
+  // king
+  const king = (color==='w')?'K':'k';
+  for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++){
+    if (dx===0 && dy===0) continue;
+    const x=tx-dx, y=ty-dy;
+    if (inBounds(x,y) && b[y][x]===king) return true;
+  }
+
+  // sliders
+  function ray(dxs,dys, pieces){
+    let x=tx-dxs, y=ty-dys;
+    while(inBounds(x,y)){
+      const p=b[y][x];
+      if (p){
+        if (pieces.includes(p)) return true;
+        return false;
+      }
+      x-=dxs; y-=dys;
+    }
+    return false;
+  }
+  const rook = (color==='w')?'R':'r';
+  const bishop = (color==='w')?'B':'b';
+  const queen = (color==='w')?'Q':'q';
+  if (ray(1,0,[rook,queen])) return true;
+  if (ray(-1,0,[rook,queen])) return true;
+  if (ray(0,1,[rook,queen])) return true;
+  if (ray(0,-1,[rook,queen])) return true;
+  if (ray(1,1,[bishop,queen])) return true;
+  if (ray(1,-1,[bishop,queen])) return true;
+  if (ray(-1,1,[bishop,queen])) return true;
+  if (ray(-1,-1,[bishop,queen])) return true;
+
+  return false;
+}
+
+function inCheck(state, color){
+  const kpos = findKing(state, color);
+  if (!kpos) return false;
+  const opp = (color==='w')?'b':'w';
+  return attackedBy(state, opp, kpos.x, kpos.y);
+}
+
+function pushMove(list, from, to, extra){
+  list.push({fx:from.x, fy:from.y, tx:to.x, ty:to.y, ...extra});
+}
+
+function genPseudoMoves(state, x, y){
+  const b = state.board;
+  const p = b[y][x];
+  if (!p) return [];
+  const c = colorOf(p);
+  if (c !== state.turn) return [];
+  const moves = [];
+  const opp = (c==='w')?'b':'w';
+
+  const add = (tx,ty,extra={}) => {
+    if (!inBounds(tx,ty)) return;
+    const t=b[ty][tx];
+    if (!t) pushMove(moves,{x,y},{x:tx,y:ty},extra);
+    else {
+      if (colorOf(t)!==c) pushMove(moves,{x,y},{x:tx,y:ty},extra);
+    }
   };
 
-  function focusFirst(root) {
-    const f = root.querySelector('.item, .btn, canvas');
-    if (f) f.focus();
-  }
-
-  let currentScreen = 'menu';
-  function show(name) {
-    Object.values(screens).forEach(s => s.classList.remove('active'));
-    screens[name].classList.add('active');
-    currentScreen = name;
-    focusFirst(screens[name]);
-    if (name === 'xo') resetXO();
-    if (name === 'chess') resetChess();
-  }
-
-  // make focusable
-  document.querySelectorAll('.item, .btn').forEach(el => el.setAttribute('tabindex','0'));
-
-  // Softkey-ish behavior:
-  // Escape ~ LSK menu, Backspace ~ RSK back (tùy firmware)
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      if (currentScreen !== 'menu') { e.preventDefault(); show('menu'); }
+  const slide = (dirs) => {
+    for (const [dx,dy] of dirs){
+      let tx=x+dx, ty=y+dy;
+      while(inBounds(tx,ty)){
+        const t=b[ty][tx];
+        if (!t){ pushMove(moves,{x,y},{x:tx,y:ty},{}); }
+        else {
+          if (colorOf(t)!==c) pushMove(moves,{x,y},{x:tx,y:ty},{});
+          break;
+        }
+        tx+=dx; ty+=dy;
+      }
     }
-    if (e.key === 'Backspace') {
-      if (currentScreen !== 'menu') { e.preventDefault(); show('menu'); }
-    }
-  });
-
-  document.body.addEventListener('click', (e) => {
-    const go = e.target.closest('[data-go]');
-    if (go) { e.preventDefault(); show(go.dataset.go); return; }
-
-    const xom = e.target.closest('[data-xomode]');
-    if (xom) { e.preventDefault(); startXO(xom.dataset.xomode); return; }
-
-    const chm = e.target.closest('[data-chessmode]');
-    if (chm) { e.preventDefault(); startChess(chm.dataset.chessmode); return; }
-  });
-
-  // Enter activates focused item
-  document.body.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter') return;
-    const a = document.activeElement?.closest?.('[data-go]');
-    const b = document.activeElement?.closest?.('[data-xomode]');
-    const c = document.activeElement?.closest?.('[data-chessmode]');
-    if (a) { e.preventDefault(); a.click(); }
-    else if (b) { e.preventDefault(); b.click(); }
-    else if (c) { e.preventDefault(); c.click(); }
-  });
-
-  // ===== X/O =====
-  const cvXO = document.getElementById('cvXO');
-  const ctxXO = cvXO.getContext('2d');
-  const statusXO = document.getElementById('statusXO');
-
-  let boardXO, turnXO, cursorXO, historyXO, xoMode; // xoMode: 'local' | 'bot'
-  const BOT_SIDE = 'O';
-
-  function cloneBoard(b) { return b.map(r => r.slice()); }
-
-  function resetXO() {
-    boardXO = Array.from({length: 3}, () => Array(3).fill(null));
-    turnXO = 'X';
-    cursorXO = {x: 1, y: 1};
-    historyXO = [];
-    renderXO();
-    statusXO.textContent = xoMode === 'local'
-      ? '2P Local: lượt X. D-pad di chuyển, OK đánh.'
-      : 'Vs Bot: bạn là X. D-pad di chuyển, OK đánh.';
-    cvXO.setAttribute('tabindex','0');
-    cvXO.focus();
-  }
-
-  function startXO(mode) {
-    xoMode = mode;
-    show('xo');
-  }
-
-  function checkWinXO(b) {
-    const lines = [];
-    for (let i=0;i<3;i++) {
-      lines.push([b[i][0],b[i][1],b[i][2]]);
-      lines.push([b[0][i],b[1][i],b[2][i]]);
-    }
-    lines.push([b[0][0],b[1][1],b[2][2]]);
-    lines.push([b[0][2],b[1][1],b[2][0]]);
-    for (const L of lines) {
-      if (L[0] && L[0]===L[1] && L[1]===L[2]) return L[0];
-    }
-    if (b.flat().every(Boolean)) return 'DRAW';
-    return null;
-  }
-
-  function emptyCellsXO() {
-    const cells = [];
-    for (let y=0;y<3;y++) for (let x=0;x<3;x++) if (!boardXO[y][x]) cells.push({x,y});
-    return cells;
-  }
-
-  function botMoveRandomXO() {
-    const cells = emptyCellsXO();
-    if (!cells.length) return;
-    const pick = cells[Math.floor(Math.random()*cells.length)];
-    doMoveXO(pick.x, pick.y);
-  }
-
-  function doMoveXO(x,y) {
-    if (boardXO[y][x]) return;
-    historyXO.push({board: cloneBoard(boardXO), turn: turnXO, cursor: {...cursorXO}, xoMode});
-    boardXO[y][x] = turnXO;
-    renderXO();
-
-    const w = checkWinXO(boardXO);
-    if (w) {
-      statusXO.textContent = (w==='DRAW') ? 'Hòa! (1: New)' : `Thắng: ${w}! (1: New)`;
-      return;
-    }
-
-    turnXO = (turnXO === 'X') ? 'O' : 'X';
-    statusXO.textContent = (xoMode === 'local')
-      ? `2P Local: lượt ${turnXO}.`
-      : (turnXO === BOT_SIDE ? 'Bot đang nghĩ…' : 'Lượt bạn (X).');
-
-    if (xoMode === 'bot' && turnXO === BOT_SIDE) {
-      setTimeout(() => botMoveRandomXO(), 150);
-    }
-  }
-
-  function undoXO() {
-    const last = historyXO.pop();
-    if (!last) return;
-    boardXO = last.board;
-    turnXO = last.turn;
-    cursorXO = last.cursor;
-    xoMode = last.xoMode;
-    renderXO();
-    statusXO.textContent = `Undo. Lượt ${turnXO}.`;
-  }
-
-  function renderXO() {
-    const W = cvXO.width, H = cvXO.height;
-    ctxXO.clearRect(0,0,W,H);
-
-    ctxXO.lineWidth = 4;
-    ctxXO.beginPath();
-    ctxXO.moveTo(W/3, 10); ctxXO.lineTo(W/3, H-10);
-    ctxXO.moveTo(2*W/3, 10); ctxXO.lineTo(2*W/3, H-10);
-    ctxXO.moveTo(10, H/3); ctxXO.lineTo(W-10, H/3);
-    ctxXO.moveTo(10, 2*H/3); ctxXO.lineTo(W-10, 2*H/3);
-    ctxXO.stroke();
-
-    ctxXO.font = 'bold 80px sans-serif';
-    ctxXO.textAlign = 'center';
-    ctxXO.textBaseline = 'middle';
-    for (let y=0;y<3;y++) for (let x=0;x<3;x++) {
-      const v = boardXO?.[y]?.[x];
-      if (!v) continue;
-      ctxXO.fillText(v, (x+0.5)*W/3, (y+0.5)*H/3);
-    }
-
-    const cellW = W/3, cellH = H/3;
-    ctxXO.lineWidth = 6;
-    ctxXO.strokeRect(cursorXO.x*cellW + 6, cursorXO.y*cellH + 6, cellW - 12, cellH - 12);
-  }
-
-  cvXO.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft')  { e.preventDefault(); cursorXO.x = (cursorXO.x+2)%3; renderXO(); }
-    if (e.key === 'ArrowRight') { e.preventDefault(); cursorXO.x = (cursorXO.x+1)%3; renderXO(); }
-    if (e.key === 'ArrowUp')    { e.preventDefault(); cursorXO.y = (cursorXO.y+2)%3; renderXO(); }
-    if (e.key === 'ArrowDown')  { e.preventDefault(); cursorXO.y = (cursorXO.y+1)%3; renderXO(); }
-
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (xoMode === 'bot' && turnXO === BOT_SIDE) return;
-      doMoveXO(cursorXO.x, cursorXO.y);
-    }
-
-    if (e.key === '1') { e.preventDefault(); resetXO(); }
-    if (e.key === '2') { e.preventDefault(); undoXO(); }
-    if (e.key === '0') { e.preventDefault(); show('xoMode'); }
-    if (e.key === 'Backspace') { e.preventDefault(); show('menu'); }
-  });
-
-  // ===== CHESS (2P local) =====
-  const cvChess = document.getElementById('cvChess');
-  const ctxChess = cvChess.getContext('2d');
-  const statusChess = document.getElementById('statusChess');
-
-  let chessMode = 'local'; // 'local' | 'bot'(sau)
-  let chess, cursorC, selectedSq, legalTo, flip, pendingPromo;
-
-  const PIECE_UNI = {
-    wp:'♙', wn:'♘', wb:'♗', wr:'♖', wq:'♕', wk:'♔',
-    bp:'♟', bn:'♞', bb:'♝', br:'♜', bq:'♛', bk:'♚',
   };
 
-  function startChess(mode) {
-    chessMode = mode;
-    show('chess');
-  }
+  if (p==='P' || p==='p'){
+    const dir = (c==='w')?-1:1;
+    const startRank = (c==='w')?6:1;
+    const lastRank = (c==='w')?0:7;
 
-  function resetChess() {
-    if (typeof Chess === 'undefined') {
-      statusChess.textContent = 'Lỗi: không tải được chess.js. Thử refresh mạng / chờ tí rồi vào lại.';
-      return;
-    }
-    chess = new Chess();
-    cursorC = {x: 4, y: 6};      // gần quân trắng
-    selectedSq = null;
-    legalTo = new Set();
-    flip = false;
-    pendingPromo = null;
-    statusChess.textContent = 'Cờ vua 2P: Trắng đi trước. OK chọn quân.';
-    cvChess.setAttribute('tabindex','0');
-    cvChess.focus();
-    renderChess();
-  }
-
-  function xyToSquare(x,y) {
-    // x:0..7 file a..h, y:0..7 rank 8..1 (top->bottom)
-    const file = String.fromCharCode('a'.charCodeAt(0) + x);
-    const rank = 8 - y;
-    return file + rank;
-  }
-
-  function viewToBoardXY(vx, vy) {
-    // nếu flip = false: view==board
-    // nếu flip = true: đảo cả 2 trục
-    if (!flip) return {x: vx, y: vy};
-    return {x: 7 - vx, y: 7 - vy};
-  }
-
-  function boardToViewXY(bx, by) {
-    if (!flip) return {x: bx, y: by};
-    return {x: 7 - bx, y: 7 - by};
-  }
-
-  function getPieceAtView(vx, vy) {
-    const b = viewToBoardXY(vx, vy);
-    const sq = xyToSquare(b.x, b.y);
-    return chess.get(sq);
-  }
-
-  function refreshLegalMoves(fromSq) {
-    legalTo.clear();
-    const moves = chess.moves({ square: fromSq, verbose: true });
-    for (const m of moves) legalTo.add(m.to);
-  }
-
-  function setSelectionMaybe(vx, vy) {
-    const b = viewToBoardXY(vx, vy);
-    const sq = xyToSquare(b.x, b.y);
-    const p = chess.get(sq);
-    const turn = chess.turn(); // 'w' or 'b'
-    if (p && p.color === turn) {
-      selectedSq = sq;
-      refreshLegalMoves(selectedSq);
-    } else {
-      selectedSq = null;
-      legalTo.clear();
-    }
-  }
-
-  function tryMoveTo(vx, vy) {
-    const b = viewToBoardXY(vx, vy);
-    const toSq = xyToSquare(b.x, b.y);
-
-    // nếu đang chờ phong cấp
-    if (pendingPromo) return;
-
-    if (!selectedSq) {
-      setSelectionMaybe(vx, vy);
-      renderChess();
-      return;
+    // forward 1
+    if (inBounds(x,y+dir) && !b[y+dir][x]){
+      if (y+dir===lastRank) pushMove(moves,{x,y},{x,y:y+dir},{promo:true});
+      else pushMove(moves,{x,y},{x,y:y+dir},{});
+      // forward 2
+      if (y===startRank && !b[y+2*dir][x]) pushMove(moves,{x,y},{x,y:y+2*dir},{double:true});
     }
 
-    // nếu bấm vào quân cùng màu -> đổi selection
-    const p = chess.get(toSq);
-    if (p && p.color === chess.turn()) {
-      selectedSq = toSq;
-      refreshLegalMoves(selectedSq);
-      renderChess();
-      return;
-    }
-
-    if (!legalTo.has(toSq)) {
-      // bấm sai ô: bỏ chọn
-      selectedSq = null;
-      legalTo.clear();
-      renderChess();
-      return;
-    }
-
-    // kiểm tra có phải nước phong cấp không
-    const moves = chess.moves({ square: selectedSq, verbose: true });
-    const cand = moves.find(m => m.to === toSq);
-    if (cand && cand.flags && cand.flags.includes('p')) {
-      pendingPromo = { from: selectedSq, to: toSq };
-      statusChess.textContent = 'Phong cấp: 1=Hậu(Q) 2=Xe(R) 3=Tượng(B) 4=Mã(N). Enter=Q';
-      renderChess();
-      return;
-    }
-
-    chess.move({ from: selectedSq, to: toSq });
-    selectedSq = null;
-    legalTo.clear();
-    updateChessStatus();
-    renderChess();
-  }
-
-  function doPromotion(key) {
-    if (!pendingPromo) return;
-    let promo = 'q';
-    if (key === '1') promo = 'q';
-    if (key === '2') promo = 'r';
-    if (key === '3') promo = 'b';
-    if (key === '4') promo = 'n';
-    chess.move({ from: pendingPromo.from, to: pendingPromo.to, promotion: promo });
-    pendingPromo = null;
-    selectedSq = null;
-    legalTo.clear();
-    updateChessStatus();
-    renderChess();
-  }
-
-  function updateChessStatus() {
-    if (chess.isGameOver()) {
-      if (chess.isCheckmate()) statusChess.textContent = 'Chiếu bí! (1: New, 2: Undo)';
-      else statusChess.textContent = 'Kết thúc ván (hòa). (1: New, 2: Undo)';
-      return;
-    }
-    const turn = (chess.turn() === 'w') ? 'Trắng' : 'Đen';
-    const chk = chess.isCheck() ? ' (đang bị chiếu)' : '';
-    statusChess.textContent = `Lượt: ${turn}${chk}. OK chọn quân.`;
-  }
-
-  function undoChess() {
-    if (!chess) return;
-    chess.undo();
-    pendingPromo = null;
-    selectedSq = null;
-    legalTo.clear();
-    updateChessStatus();
-    renderChess();
-  }
-
-  function renderChess() {
-    const W = cvChess.width, H = cvChess.height;
-    ctxChess.clearRect(0,0,W,H);
-
-    const cell = Math.floor(Math.min(W,H) / 8);
-    const offX = Math.floor((W - cell*8)/2);
-    const offY = Math.floor((H - cell*8)/2);
-
-    // board squares
-    for (let vy=0; vy<8; vy++) for (let vx=0; vx<8; vx++) {
-      const isDark = (vx + vy) % 2 === 1;
-      ctxChess.fillStyle = isDark ? '#b58863' : '#f0d9b5';
-      ctxChess.fillRect(offX + vx*cell, offY + vy*cell, cell, cell);
-    }
-
-    // highlight legal moves (dots)
-    if (selectedSq) {
-      for (const toSq of legalTo) {
-        // convert square -> view coords
-        const file = toSq.charCodeAt(0) - 'a'.charCodeAt(0);
-        const rank = parseInt(toSq[1],10);
-        const by = 8 - rank;
-        const bxy = {x:file, y:by};
-        const vxy = boardToViewXY(bxy.x, bxy.y);
-        const cx = offX + vxy.x*cell + cell/2;
-        const cy = offY + vxy.y*cell + cell/2;
-        ctxChess.fillStyle = 'rgba(0,0,0,0.25)';
-        ctxChess.beginPath();
-        ctxChess.arc(cx, cy, cell*0.12, 0, Math.PI*2);
-        ctxChess.fill();
+    // captures
+    for (const dx of [-1,1]){
+      const tx=x+dx, ty=y+dir;
+      if (!inBounds(tx,ty)) continue;
+      const t=b[ty][tx];
+      if (t && colorOf(t)===opp){
+        if (ty===lastRank) pushMove(moves,{x,y},{x:tx,y:ty},{promo:true});
+        else pushMove(moves,{x,y},{x:tx,y:ty},{});
       }
     }
 
-    // selected square highlight
-    if (selectedSq) {
-      const file = selectedSq.charCodeAt(0) - 'a'.charCodeAt(0);
-      const rank = parseInt(selectedSq[1],10);
-      const by = 8 - rank;
-      const vxy = boardToViewXY(file, by);
-      ctxChess.strokeStyle = '#2b6cb0';
-      ctxChess.lineWidth = 5;
-      ctxChess.strokeRect(offX + vxy.x*cell + 3, offY + vxy.y*cell + 3, cell - 6, cell - 6);
+    // en passant
+    if (state.ep){
+      const epx=state.ep.x, epy=state.ep.y;
+      if (epy===y+dir && Math.abs(epx-x)===1){
+        pushMove(moves,{x,y},{x:epx,y:epy},{ep:true});
+      }
     }
-
-    // cursor highlight
-    ctxChess.strokeStyle = '#111';
-    ctxChess.lineWidth = 5;
-    ctxChess.strokeRect(offX + cursorC.x*cell + 2, offY + cursorC.y*cell + 2, cell - 4, cell - 4);
-
-    // pieces
-    ctxChess.font = `bold ${Math.floor(cell*0.72)}px sans-serif`;
-    ctxChess.textAlign = 'center';
-    ctxChess.textBaseline = 'middle';
-    for (let by=0; by<8; by++) for (let bx=0; bx<8; bx++) {
-      const sq = xyToSquare(bx, by);
-      const p = chess.get(sq);
-      if (!p) continue;
-      const key = p.color + p.type;
-      const uni = PIECE_UNI[key];
-      const vxy = boardToViewXY(bx, by);
-      const cx = offX + vxy.x*cell + cell/2;
-      const cy = offY + vxy.y*cell + cell/2;
-      ctxChess.fillStyle = '#111';
-      ctxChess.fillText(uni, cx, cy+1);
+  }
+  else if (p==='N' || p==='n'){
+    const OFF=[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
+    for (const [dx,dy] of OFF) add(x+dx,y+dy,{});
+  }
+  else if (p==='B' || p==='b'){
+    slide([[1,1],[1,-1],[-1,1],[-1,-1]]);
+  }
+  else if (p==='R' || p==='r'){
+    slide([[1,0],[-1,0],[0,1],[0,-1]]);
+  }
+  else if (p==='Q' || p==='q'){
+    slide([[1,1],[1,-1],[-1,1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]]);
+  }
+  else if (p==='K' || p==='k'){
+    for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++){
+      if (dx===0 && dy===0) continue;
+      add(x+dx,y+dy,{});
     }
-
-    // pending promotion box
-    if (pendingPromo) {
-      ctxChess.fillStyle = 'rgba(255,255,255,0.92)';
-      ctxChess.fillRect(10, 10, W-20, 52);
-      ctxChess.strokeStyle = '#111';
-      ctxChess.strokeRect(10, 10, W-20, 52);
-      ctxChess.fillStyle = '#111';
-      ctxChess.font = 'bold 16px sans-serif';
-      ctxChess.textAlign = 'left';
-      ctxChess.fillText('Phong cấp: 1=Q 2=R 3=B 4=N (Enter=Q)', 18, 42);
+    // castling
+    if (c==='w' && y===7 && x===4){
+      // king side
+      if (state.castle.K && !b[7][5] && !b[7][6]){
+        // squares not attacked: e1 f1 g1
+        if (!inCheck(state,'w') && !attackedBy(state,'b',5,7) && !attackedBy(state,'b',6,7)){
+          pushMove(moves,{x,y},{x:6,y:7},{castle:'K'});
+        }
+      }
+      // queen side
+      if (state.castle.Q && !b[7][3] && !b[7][2] && !b[7][1]){
+        if (!inCheck(state,'w') && !attackedBy(state,'b',3,7) && !attackedBy(state,'b',2,7)){
+          pushMove(moves,{x,y},{x:2,y:7},{castle:'Q'});
+        }
+      }
+    }
+    if (c==='b' && y===0 && x===4){
+      if (state.castle.k && !b[0][5] && !b[0][6]){
+        if (!inCheck(state,'b') && !attackedBy(state,'w',5,0) && !attackedBy(state,'w',6,0)){
+          pushMove(moves,{x,y},{x:6,y:0},{castle:'k'});
+        }
+      }
+      if (state.castle.q && !b[0][3] && !b[0][2] && !b[0][1]){
+        if (!inCheck(state,'b') && !attackedBy(state,'w',3,0) && !attackedBy(state,'w',2,0)){
+          pushMove(moves,{x,y},{x:2,y:0},{castle:'q'});
+        }
+      }
     }
   }
 
-  cvChess.addEventListener('keydown', (e) => {
-    if (!chess) return;
+  return moves;
+}
 
-    if (pendingPromo) {
-      if (['1','2','3','4'].includes(e.key)) { e.preventDefault(); doPromotion(e.key); }
-      if (e.key === 'Enter') { e.preventDefault(); doPromotion('1'); }
-      if (e.key === 'Backspace' || e.key === 'Escape') { e.preventDefault(); pendingPromo=null; updateChessStatus(); renderChess(); }
-      return;
+function applyMove(state, mv, promoPiece){
+  // returns newState (mutated clone), assumes mv is legal
+  const ns = cloneState(state);
+  const b = ns.board;
+  const p = b[mv.fy][mv.fx];
+  const c = colorOf(p);
+  const opp = (c==='w')?'b':'w';
+
+  // halfmove reset
+  const captured = b[mv.ty][mv.tx];
+  const isPawn = (p==='P'||p==='p');
+  ns.half = (isPawn || captured || mv.ep) ? 0 : (ns.half+1);
+
+  // clear ep default
+  ns.ep = null;
+
+  // handle castling rook move
+  if (mv.castle){
+    if (mv.castle==='K'){ // white king side
+      // move king
+      b[7][4]=null; b[7][6]='K';
+      // move rook h1->f1
+      b[7][7]=null; b[7][5]='R';
+    } else if (mv.castle==='Q'){ // white queen side
+      b[7][4]=null; b[7][2]='K';
+      b[7][0]=null; b[7][3]='R';
+    } else if (mv.castle==='k'){ // black king side
+      b[0][4]=null; b[0][6]='k';
+      b[0][7]=null; b[0][5]='r';
+    } else if (mv.castle==='q'){ // black queen side
+      b[0][4]=null; b[0][2]='k';
+      b[0][0]=null; b[0][3]='r';
+    }
+    // update castle rights
+    if (c==='w'){ ns.castle.K=false; ns.castle.Q=false; }
+    else { ns.castle.k=false; ns.castle.q=false; }
+  } else {
+    // en passant capture
+    if (mv.ep){
+      // pawn moves to ep square, capture pawn behind
+      b[mv.fy][mv.fx]=null;
+      b[mv.ty][mv.tx]=p;
+      const capY = (c==='w') ? mv.ty+1 : mv.ty-1;
+      b[capY][mv.tx]=null;
+    } else {
+      // normal move/capture
+      b[mv.fy][mv.fx]=null;
+      // promotion
+      if (mv.promo){
+        const prom = promoPiece || (c==='w'?'Q':'q');
+        b[mv.ty][mv.tx]=prom;
+      } else {
+        b[mv.ty][mv.tx]=p;
+      }
     }
 
-    if (e.key === 'ArrowLeft')  { e.preventDefault(); cursorC.x = (cursorC.x+7)%8; renderChess(); }
-    if (e.key === 'ArrowRight') { e.preventDefault(); cursorC.x = (cursorC.x+1)%8; renderChess(); }
-    if (e.key === 'ArrowUp')    { e.preventDefault(); cursorC.y = (cursorC.y+7)%8; renderChess(); }
-    if (e.key === 'ArrowDown')  { e.preventDefault(); cursorC.y = (cursorC.y+1)%8; renderChess(); }
-
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      // local 2P: cứ theo lượt, ai cầm máy bấm là đi
-      tryMoveTo(cursorC.x, cursorC.y);
+    // set ep square if pawn double
+    if (mv.double){
+      const epy = (c==='w') ? mv.ty+1 : mv.ty-1;
+      ns.ep = {x: mv.tx, y: epy};
     }
 
-    if (e.key === '1') { e.preventDefault(); resetChess(); }
-    if (e.key === '2') { e.preventDefault(); undoChess(); }
-    if (e.key === '3') { e.preventDefault(); flip = !flip; renderChess(); }
-    if (e.key === '0') { e.preventDefault(); show('chessMode'); }
-    if (e.key === 'Backspace') { e.preventDefault(); show('menu'); }
-  });
+    // update castling rights if king/rook moved or rook captured
+    if (p==='K'){ ns.castle.K=false; ns.castle.Q=false; }
+    if (p==='k'){ ns.castle.k=false; ns.castle.q=false; }
 
-  // entry
-  show('menu');
+    if (p==='R' && mv.fy===7 && mv.fx===0) ns.castle.Q=false;
+    if (p==='R' && mv.fy===7 && mv.fx===7) ns.castle.K=false;
+    if (p==='r' && mv.fy===0 && mv.fx===0) ns.castle.q=false;
+    if (p==='r' && mv.fy===0 && mv.fx===7) ns.castle.k=false;
+
+    // rook captured impacts castle
+    if (captured==='R' && mv.ty===7 && mv.tx===0) ns.castle.Q=false;
+    if (captured==='R' && mv.ty===7 && mv.tx===7) ns.castle.K=false;
+    if (captured==='r' && mv.ty===0 && mv.tx===0) ns.castle.q=false;
+    if (captured==='r' && mv.ty===0 && mv.tx===7) ns.castle.k=false;
+  }
+
+  // swap turn + fullmove
+  if (ns.turn==='b') ns.full++;
+  ns.turn = (ns.turn==='w')?'b':'w';
+  return ns;
+}
+
+function legalMovesFrom(state, x, y){
+  const pseudo = genPseudoMoves(state, x, y);
+  const out = [];
+  for (const mv of pseudo){
+    // if promotion, test with queen for legality (king safety), actual piece chosen later
+    const test = applyMove(state, mv, (state.turn==='w'?'Q':'q'));
+    const me = (state.turn==='w')?'w':'b';
+    // after applyMove, turn changed, so "me" should be opposite of test.turn
+    const myColor = (test.turn==='w')?'b':'w';
+    if (!inCheck(test, myColor)) out.push(mv);
+  }
+  return out;
+}
+
+function anyLegalMove(state){
+  for (let y=0;y<8;y++) for (let x=0;x<8;x++){
+    const p = state.board[y][x];
+    if (!p) continue;
+    if (colorOf(p) !== state.turn) continue;
+    const ms = legalMovesFrom(state, x, y);
+    if (ms.length) return true;
+  }
+  return false;
+}
+
+function gameStatusText(state){
+  const turnText = (state.turn==='w')?'Trắng':'Đen';
+  const chk = inCheck(state, state.turn);
+  if (!anyLegalMove(state)){
+    if (chk) return `Chiếu bí! ${(turnText)} thua. (1 New / 2 Undo)`;
+    return `Hết nước đi (Hòa). (1 New / 2 Undo)`;
+  }
+  return `Lượt: ${turnText}${chk?' (đang bị chiếu)':''}. OK chọn quân.`;
+}
+
+// UI state for chess
+function setSelection(xv,yv){
+  const bxy = viewToBoard(xv,yv);
+  const p = S.board[bxy.y][bxy.x];
+  if (!p || colorOf(p)!==S.turn){
+    selected = null;
+    legalSet.clear();
+    return;
+  }
+  selected = {x:bxy.x, y:bxy.y};
+  legalSet.clear();
+  const ms = legalMovesFrom(S, selected.x, selected.y);
+  for (const mv of ms) legalSet.add(keyXY(mv.tx, mv.ty));
+}
+
+function tryMoveTo(xv,yv){
+  if (pendingPromo) return;
+
+  const bxy = viewToBoard(xv,yv);
+  const tx=bxy.x, ty=bxy.y;
+
+  if (!selected){
+    setSelection(xv,yv);
+    renderChess();
+    return;
+  }
+
+  // if click own piece -> change selection
+  const pHere = S.board[ty][tx];
+  if (pHere && colorOf(pHere)===S.turn){
+    setSelection(xv,yv);
+    renderChess();
+    return;
+  }
+
+  // find matching legal move
+  const ms = legalMovesFrom(S, selected.x, selected.y);
+  const mv = ms.find(m => m.tx===tx && m.ty===ty);
+  if (!mv){
+    // cancel selection
+    selected = null;
+    legalSet.clear();
+    renderChess();
+    return;
+  }
+
+  // promotion needs choice
+  if (mv.promo){
+    pendingPromo = {mv, from:{...selected}};
+    statusChess.textContent = 'Phong cấp: 1=Q 2=R 3=B 4=N';
+    renderChess();
+    return;
+  }
+
+  historyC.push(cloneState(S));
+  S = applyMove(S, mv);
+  selected = null;
+  legalSet.clear();
+  statusChess.textContent = gameStatusText(S);
+  renderChess();
+}
+
+function doPromotion(key){
+  if (!pendingPromo) return;
+  const mapW = {'1':'Q','2':'R','3':'B','4':'N'};
+  const mapB = {'1':'q','2':'r','3':'b','4':'n'};
+  const promo = (historyC && historyC.length>=0); // dummy
+  const piece = (pendingPromo.mv && S.turn==='w') ? mapW[key] : mapB[key];
+  if (!piece) return;
+
+  historyC.push(cloneState(S));
+  S = applyMove(S, pendingPromo.mv, piece);
+  pendingPromo = null;
+  selected = null;
+  legalSet.clear();
+  statusChess.textContent = gameStatusText(S);
+  renderChess();
+}
+
+function undoChess(){
+  const last = historyC.pop();
+  if (!last) return;
+  S = last;
+  pendingPromo = null;
+  selected = null;
+  legalSet.clear();
+  statusChess.textContent = gameStatusText(S);
+  renderChess();
+}
+
+function renderChess(){
+  const W=cvChess.width, H=cvChess.height;
+  ctxChess.clearRect(0,0,W,H);
+
+  const cell = Math.floor(Math.min(W,H)/8);
+  const offX = Math.floor((W - cell*8)/2);
+  const offY = Math.floor((H - cell*8)/2);
+
+  // squares
+  for (let vy=0;vy<8;vy++) for (let vx=0;vx<8;vx++){
+    const dark = ((vx+vy)&1)===1;
+    ctxChess.fillStyle = dark ? '#b58863' : '#f0d9b5';
+    ctxChess.fillRect(offX+vx*cell, offY+vy*cell, cell, cell);
+  }
+
+  // legal dots
+  if (selected){
+    for (let by=0;by<8;by++) for (let bx=0;bx<8;bx++){
+      if (!legalSet.has(keyXY(bx,by))) continue;
+      const v = boardToView(bx,by);
+      const cx=offX+v.x*cell+cell/2;
+      const cy=offY+v.y*cell+cell/2;
+      ctxChess.fillStyle='rgba(0,0,0,0.25)';
+      ctxChess.beginPath();
+      ctxChess.arc(cx,cy,cell*0.12,0,Math.PI*2);
+      ctxChess.fill();
+    }
+  }
+
+  // selected outline
+  if (selected){
+    const v = boardToView(selected.x, selected.y);
+    ctxChess.strokeStyle='#2b6cb0';
+    ctxChess.lineWidth=5;
+    ctxChess.strokeRect(offX+v.x*cell+3, offY+v.y*cell+3, cell-6, cell-6);
+  }
+
+  // cursor outline (view coords)
+  ctxChess.strokeStyle='#111';
+  ctxChess.lineWidth=5;
+  ctxChess.strokeRect(offX+cursorC.x*cell+2, offY+cursorC.y*cell+2, cell-4, cell-4);
+
+  // pieces (iterate board coords)
+  ctxChess.font = `bold ${Math.floor(cell*0.72)}px sans-serif`;
+  ctxChess.textAlign='center';
+  ctxChess.textBaseline='middle';
+  for (let by=0;by<8;by++) for (let bx=0;bx<8;bx++){
+    const p = S.board[by][bx];
+    if (!p) continue;
+    const v = boardToView(bx,by);
+    const cx=offX+v.x*cell+cell/2;
+    const cy=offY+v.y*cell+cell/2;
+    ctxChess.fillStyle='#111';
+    ctxChess.fillText(UNI[p]||p, cx, cy+1);
+  }
+
+  // promo banner
+  if (pendingPromo){
+    ctxChess.fillStyle='rgba(255,255,255,0.92)';
+    ctxChess.fillRect(10,10,W-20,52);
+    ctxChess.strokeStyle='#111';
+    ctxChess.strokeRect(10,10,W-20,52);
+    ctxChess.fillStyle='#111';
+    ctxChess.font='bold 16px sans-serif';
+    ctxChess.textAlign='left';
+    ctxChess.fillText('Phong cấp: 1=Q 2=R 3=B 4=N', 18, 42);
+  }
+}
+
+cvChess.addEventListener('keydown', (e) => {
+  if (pendingPromo){
+    if (['1','2','3','4'].includes(e.key)){ e.preventDefault(); doPromotion(e.key); }
+    if (e.key==='Enter'){ e.preventDefault(); doPromotion('1'); } // default queen
+    if (e.key==='Backspace' || e.key==='Escape'){ e.preventDefault(); pendingPromo=null; statusChess.textContent=gameStatusText(S); renderChess(); }
+    return;
+  }
+
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); cursorC.x = (cursorC.x+7)%8; renderChess(); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); cursorC.x = (cursorC.x+1)%8; renderChess(); }
+  if (e.key === 'ArrowUp')    { e.preventDefault(); cursorC.y = (cursorC.y+7)%8; renderChess(); }
+  if (e.key === 'ArrowDown')  { e.preventDefault(); cursorC.y = (cursorC.y+1)%8; renderChess(); }
+
+  if (e.key === 'Enter'){
+    e.preventDefault();
+    tryMoveTo(cursorC.x, cursorC.y);
+  }
+
+  if (e.key === '1'){ e.preventDefault(); resetChess(); statusChess.textContent = gameStatusText(S); renderChess(); }
+  if (e.key === '2'){ e.preventDefault(); undoChess(); }
+  if (e.key === '3'){ e.preventDefault(); flip = !flip; renderChess(); }
+  if (e.key === '0'){ e.preventDefault(); show('menu'); }
+});
+
+// default start
+show('menu');
 </script>
 </body>
 </html>
