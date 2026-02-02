@@ -8,37 +8,66 @@
     body { font-family: sans-serif; margin: 0; padding: 10px; }
     .screen { display:none; }
     .screen.active { display:block; }
-    .item { display:block; padding:12px; margin:8px 0; border:1px solid #444; border-radius:12px; text-decoration:none; color:inherit; }
+    .item {
+      display:block; padding:12px; margin:8px 0;
+      border:1px solid #444; border-radius:12px;
+      text-decoration:none; color:inherit;
+    }
     .item:focus { outline: 3px solid #000; }
     .hint { font-size:12px; opacity:.85; margin-top:8px; line-height:1.45; }
     canvas { border:1px solid #444; border-radius:12px; width: 100%; height: auto; }
     :focus { outline: 3px solid #000; }
+    .tiny { font-size: 11px; opacity: .8; }
   </style>
 </head>
 <body>
 
 <!-- MENU -->
 <div id="menu" class="screen active">
-  <a class="item" href="#" data-go="xoMode">1) X/O (Tic Tac Toe)</a>
-  <a class="item" href="#" data-go="chess">2) Cờ vua (2 người - đúng luật)</a>
-  <a class="item" href="#" data-go="xiangqi">3) Cờ tướng (làm sau)</a>
-  <a class="item" href="#" data-go="go">4) Cờ vây (làm sau)</a>
-  <div class="hint">D-pad: chọn • OK: vào • RSK/Back: menu • LSK(Esc): menu</div>
+  <a class="item" href="#" data-go="xoMode">1) X/O</a>
+  <a class="item" href="#" data-go="caroMode">2) Caro (Gomoku)</a>
+  <a class="item" href="#" data-go="chess">3) Cờ vua (2P)</a>
+  <a class="item" href="#" data-go="xiangqi">4) Cờ tướng (2P)</a>
+  <a class="item" href="#" data-go="goMode">5) Cờ vây (2P)</a>
+  <div class="hint">
+    D-pad: di chuyển • OK: chọn/đi • 1: New • 2: Undo • 3: Flip (nếu có) • 0: Menu •
+    Esc/Backspace: Menu
+  </div>
+  <div class="tiny">Tip: nếu widget bị cache, mở link thêm ?v=2,3...</div>
 </div>
 
 <!-- X/O MODE -->
 <div id="xoMode" class="screen">
-  <div class="hint"><b>X/O</b> — chọn chế độ:</div>
-  <a class="item" href="#" data-xomode="local">1) 2 người chơi (cùng máy)</a>
-  <a class="item" href="#" data-xomode="bot">2) Chơi với bot (random)</a>
-  <div class="hint">OK: chọn • Back: về menu</div>
+  <div class="hint"><b>X/O</b> — chọn kích thước:</div>
+  <a class="item" href="#" data-xo="3">3x3 (win 3)</a>
+  <a class="item" href="#" data-xo="4">4x4 (win 4)</a>
+  <a class="item" href="#" data-xo="7">7x7 (win 5)</a>
+  <a class="item" href="#" data-go="menu">0) Menu</a>
 </div>
 
 <!-- X/O GAME -->
 <div id="xo" class="screen">
   <canvas id="cvXO" width="320" height="320"></canvas>
   <div class="hint" id="statusXO"></div>
-  <div class="hint">OK: đánh • 1: New • 2: Undo • 0: Đổi chế độ • Back: menu</div>
+  <div class="hint">OK: đánh • 1: New • 2: Undo • 0: Menu</div>
+</div>
+
+<!-- CARO MODE -->
+<div id="caroMode" class="screen">
+  <div class="hint"><b>Caro</b> — chọn size & luật thắng:</div>
+  <a class="item" href="#" data-caro="4,4">4x4 (win 4)</a>
+  <a class="item" href="#" data-caro="7,4">7x7 (win 4)</a>
+  <a class="item" href="#" data-caro="10,5">10x10 (win 5)</a>
+  <a class="item" href="#" data-caro="15,5">15x15 (win 5)</a>
+  <a class="item" href="#" data-caro="19,5">19x19 (win 5)</a>
+  <a class="item" href="#" data-go="menu">0) Menu</a>
+</div>
+
+<!-- CARO GAME -->
+<div id="caro" class="screen">
+  <canvas id="cvCaro" width="320" height="320"></canvas>
+  <div class="hint" id="statusCaro"></div>
+  <div class="hint">OK: đặt X/O • 1: New • 2: Undo • 0: Menu</div>
 </div>
 
 <!-- CHESS GAME -->
@@ -46,32 +75,49 @@
   <canvas id="cvChess" width="320" height="320"></canvas>
   <div class="hint" id="statusChess"></div>
   <div class="hint">
-    D-pad: di chuyển • OK: chọn quân/đi • 1: New • 2: Undo • 3: Lật bàn • 0: Về menu
+    D-pad: di chuyển • OK: chọn quân/đi • 1: New • 2: Undo • 3: Lật bàn • 0: Menu
     <br>Phong cấp: 1=Hậu(Q) 2=Xe(R) 3=Tượng(B) 4=Mã(N)
   </div>
 </div>
 
-<!-- PLACEHOLDERS -->
+<!-- XIANGQI GAME -->
 <div id="xiangqi" class="screen">
-  <div class="hint"><b>Cờ tướng</b>: làm sau (cùng kiểu điều khiển D-pad).</div>
-  <a class="item" href="#" data-go="menu">Quay về menu</a>
+  <canvas id="cvXQ" width="320" height="360"></canvas>
+  <div class="hint" id="statusXQ"></div>
+  <div class="hint">D-pad: di chuyển • OK: chọn/đi • 1: New • 2: Undo • 3: Lật bàn • 0: Menu</div>
 </div>
 
+<!-- GO MODE -->
+<div id="goMode" class="screen">
+  <div class="hint"><b>Cờ vây</b> — chọn size:</div>
+  <a class="item" href="#" data-goSize="7">7x7</a>
+  <a class="item" href="#" data-goSize="9">9x9</a>
+  <a class="item" href="#" data-goSize="13">13x13</a>
+  <a class="item" href="#" data-goSize="19">19x19</a>
+  <a class="item" href="#" data-go="menu">0) Menu</a>
+  <div class="tiny">Có ăn quân + ko đơn giản + cấm tự sát. Pass: phím 5.</div>
+</div>
+
+<!-- GO GAME -->
 <div id="go" class="screen">
-  <div class="hint"><b>Cờ vây</b>: làm sau (bắt đầu 9x9).</div>
-  <a class="item" href="#" data-go="menu">Quay về menu</a>
+  <canvas id="cvGo" width="320" height="320"></canvas>
+  <div class="hint" id="statusGo"></div>
+  <div class="hint">OK: đặt đá • 5: Pass • 1: New • 2: Undo • 0: Menu</div>
 </div>
 
 <script>
 /* =========================
-   ROUTER + FOCUS + SOFTKEY
+   ROUTER + SOFTKEY
 ========================= */
 const screens = {
   menu: document.getElementById('menu'),
   xoMode: document.getElementById('xoMode'),
   xo: document.getElementById('xo'),
+  caroMode: document.getElementById('caroMode'),
+  caro: document.getElementById('caro'),
   chess: document.getElementById('chess'),
   xiangqi: document.getElementById('xiangqi'),
+  goMode: document.getElementById('goMode'),
   go: document.getElementById('go'),
 };
 
@@ -87,691 +133,645 @@ function show(name) {
   currentScreen = name;
   focusFirst(screens[name]);
   if (name === 'xo') resetXO();
+  if (name === 'caro') resetCaro();
   if (name === 'chess') resetChess();
+  if (name === 'xiangqi') resetXQ();
+  if (name === 'go') resetGo();
 }
 
 document.querySelectorAll('.item').forEach(el => el.setAttribute('tabindex','0'));
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { // LSK
+  // LSK / RSK on many firmwares
+  if (e.key === 'Escape' || e.key === 'Backspace') {
     if (currentScreen !== 'menu') { e.preventDefault(); show('menu'); }
   }
-  if (e.key === 'Backspace') { // RSK/back (nhiều máy)
-    if (currentScreen !== 'menu') { e.preventDefault(); show('menu'); }
-  }
+  // hard menu key
+  if (e.key === '0' && currentScreen !== 'menu') { e.preventDefault(); show('menu'); }
 });
 
 document.body.addEventListener('click', (e) => {
   const go = e.target.closest('[data-go]');
   if (go) { e.preventDefault(); show(go.dataset.go); return; }
 
-  const xom = e.target.closest('[data-xomode]');
-  if (xom) { e.preventDefault(); startXO(xom.dataset.xomode); return; }
+  const xo = e.target.closest('[data-xo]');
+  if (xo) { e.preventDefault(); XO.size = parseInt(xo.dataset.xo,10); XO.win = (XO.size<=4?XO.size:5); show('xo'); return; }
+
+  const caro = e.target.closest('[data-caro]');
+  if (caro) {
+    e.preventDefault();
+    const [n,k] = caro.dataset.caro.split(',').map(x=>parseInt(x,10));
+    CARO.size=n; CARO.win=k; show('caro'); return;
+  }
+
+  const gs = e.target.closest('[data-goSize]');
+  if (gs) { e.preventDefault(); GO.size=parseInt(gs.dataset.goSize,10); show('go'); return; }
 });
 
 document.body.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
-  const a = document.activeElement?.closest?.('[data-go]');
-  const b = document.activeElement?.closest?.('[data-xomode]');
+  const a = document.activeElement?.closest?.('.item');
   if (a) { e.preventDefault(); a.click(); }
-  else if (b) { e.preventDefault(); b.click(); }
 });
 
 /* =========================
-   X/O (TIC TAC TOE)
+   DRAW HELPERS
+========================= */
+function drawCenteredText(ctx, text, x, y, sizePx, bold=false) {
+  ctx.save();
+  ctx.font = (bold?'bold ':'') + sizePx + 'px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
+
+/* =========================
+   X/O (generalized)
 ========================= */
 const cvXO = document.getElementById('cvXO');
 const ctxXO = cvXO.getContext('2d');
 const statusXO = document.getElementById('statusXO');
 
-let boardXO, turnXO, cursorXO, historyXO, xoMode;
-const BOT_SIDE = 'O';
+const XO = { size:3, win:3 };
+let xoBoard, xoTurn, xoCursor, xoHist, xoOver;
 
-function cloneBoardXO(b) { return b.map(r => r.slice()); }
+function newBoard(n){ return Array.from({length:n},()=>Array(n).fill(null)); }
+function clone2D(b){ return b.map(r=>r.slice()); }
 
-function startXO(mode) { xoMode = mode; show('xo'); }
-
-function resetXO() {
-  boardXO = Array.from({length: 3}, () => Array(3).fill(null));
-  turnXO = 'X';
-  cursorXO = {x: 1, y: 1};
-  historyXO = [];
-  renderXO();
-  statusXO.textContent = (xoMode === 'bot') ? 'Vs Bot: bạn là X.' : '2P Local: lượt X.';
+function resetXO(){
+  const n=XO.size;
+  xoBoard=newBoard(n);
+  xoTurn='X';
+  xoCursor={x: Math.floor(n/2), y: Math.floor(n/2)};
+  xoHist=[];
+  xoOver=false;
+  statusXO.textContent = `X/O ${n}x${n} (win ${XO.win}) — Lượt X.`;
   cvXO.setAttribute('tabindex','0');
   cvXO.focus();
-}
-
-function checkWinXO(b) {
-  const lines = [];
-  for (let i=0;i<3;i++) {
-    lines.push([b[i][0],b[i][1],b[i][2]]);
-    lines.push([b[0][i],b[1][i],b[2][i]]);
-  }
-  lines.push([b[0][0],b[1][1],b[2][2]]);
-  lines.push([b[0][2],b[1][1],b[2][0]]);
-  for (const L of lines) if (L[0] && L[0]===L[1] && L[1]===L[2]) return L[0];
-  if (b.flat().every(Boolean)) return 'DRAW';
-  return null;
-}
-
-function emptyCellsXO() {
-  const cells = [];
-  for (let y=0;y<3;y++) for (let x=0;x<3;x++) if (!boardXO[y][x]) cells.push({x,y});
-  return cells;
-}
-function botMoveRandomXO() {
-  const cells = emptyCellsXO();
-  if (!cells.length) return;
-  const pick = cells[Math.floor(Math.random()*cells.length)];
-  doMoveXO(pick.x, pick.y);
-}
-
-function doMoveXO(x,y) {
-  if (boardXO[y][x]) return;
-  historyXO.push({board: cloneBoardXO(boardXO), turn: turnXO, cursor: {...cursorXO}, xoMode});
-  boardXO[y][x] = turnXO;
   renderXO();
-
-  const w = checkWinXO(boardXO);
-  if (w) {
-    statusXO.textContent = (w==='DRAW') ? 'Hòa! (1: New)' : `Thắng: ${w}! (1: New)`;
-    return;
+}
+function lineCount(board, x,y, dx,dy, v){
+  let c=0;
+  let i=x, j=y;
+  while(i>=0 && i<board.length && j>=0 && j<board.length && board[j][i]===v){ c++; i+=dx; j+=dy; }
+  return c;
+}
+function checkWinLine(board, x,y, v, need){
+  const dirs=[[1,0],[0,1],[1,1],[1,-1]];
+  for(const [dx,dy] of dirs){
+    const a=lineCount(board,x,y,dx,dy,v);
+    const b=lineCount(board,x,y,-dx,-dy,v);
+    if (a+b-1 >= need) return true;
   }
-
-  turnXO = (turnXO === 'X') ? 'O' : 'X';
-  statusXO.textContent = (xoMode === 'bot')
-    ? (turnXO === BOT_SIDE ? 'Bot…' : 'Lượt bạn (X).')
-    : `2P Local: lượt ${turnXO}.`;
-
-  if (xoMode === 'bot' && turnXO === BOT_SIDE) setTimeout(botMoveRandomXO, 150);
+  return false;
 }
-
-function undoXO() {
-  const last = historyXO.pop();
-  if (!last) return;
-  boardXO = last.board;
-  turnXO = last.turn;
-  cursorXO = last.cursor;
-  xoMode = last.xoMode;
+function isFull(board){
+  for(const r of board) for(const c of r) if(!c) return false;
+  return true;
+}
+function xoMove(x,y){
+  if (xoOver) return;
+  if (xoBoard[y][x]) return;
+  xoHist.push({board: clone2D(xoBoard), turn: xoTurn, cursor:{...xoCursor}, over:xoOver});
+  xoBoard[y][x]=xoTurn;
+  if (checkWinLine(xoBoard,x,y,xoTurn,XO.win)) {
+    xoOver=true;
+    statusXO.textContent = `Thắng: ${xoTurn}! (1 New / 2 Undo / 0 Menu)`;
+  } else if (isFull(xoBoard)) {
+    xoOver=true;
+    statusXO.textContent = `Hòa! (1 New / 2 Undo / 0 Menu)`;
+  } else {
+    xoTurn = (xoTurn==='X')?'O':'X';
+    statusXO.textContent = `X/O ${XO.size}x${XO.size} — Lượt ${xoTurn}.`;
+  }
   renderXO();
-  statusXO.textContent = `Undo. Lượt ${turnXO}.`;
 }
-
-function renderXO() {
-  const W = cvXO.width, H = cvXO.height;
+function xoUndo(){
+  const last = xoHist.pop();
+  if(!last) return;
+  xoBoard=last.board; xoTurn=last.turn; xoCursor=last.cursor; xoOver=last.over;
+  statusXO.textContent = `Undo. Lượt ${xoTurn}.`;
+  renderXO();
+}
+function renderXO(){
+  const n=XO.size;
+  const W=cvXO.width, H=cvXO.height;
   ctxXO.clearRect(0,0,W,H);
+  const cell = Math.floor(Math.min(W,H)/n);
+  const offX = Math.floor((W - cell*n)/2);
+  const offY = Math.floor((H - cell*n)/2);
 
-  ctxXO.lineWidth = 4;
-  ctxXO.beginPath();
-  ctxXO.moveTo(W/3, 10); ctxXO.lineTo(W/3, H-10);
-  ctxXO.moveTo(2*W/3, 10); ctxXO.lineTo(2*W/3, H-10);
-  ctxXO.moveTo(10, H/3); ctxXO.lineTo(W-10, H/3);
-  ctxXO.moveTo(10, 2*H/3); ctxXO.lineTo(W-10, 2*H/3);
-  ctxXO.stroke();
-
-  ctxXO.font = 'bold 80px sans-serif';
-  ctxXO.textAlign = 'center';
-  ctxXO.textBaseline = 'middle';
-  for (let y=0;y<3;y++) for (let x=0;x<3;x++) {
-    const v = boardXO[y][x];
-    if (!v) continue;
-    ctxXO.fillText(v, (x+0.5)*W/3, (y+0.5)*H/3);
+  ctxXO.lineWidth = 2;
+  ctxXO.strokeStyle = '#111';
+  for(let i=0;i<=n;i++){
+    ctxXO.beginPath(); ctxXO.moveTo(offX+i*cell, offY); ctxXO.lineTo(offX+i*cell, offY+n*cell); ctxXO.stroke();
+    ctxXO.beginPath(); ctxXO.moveTo(offX, offY+i*cell); ctxXO.lineTo(offX+n*cell, offY+i*cell); ctxXO.stroke();
   }
 
-  const cellW = W/3, cellH = H/3;
-  ctxXO.lineWidth = 6;
-  ctxXO.strokeRect(cursorXO.x*cellW + 6, cursorXO.y*cellH + 6, cellW - 12, cellH - 12);
+  const fs = Math.floor(cell*0.7);
+  ctxXO.fillStyle='#111';
+  for(let y=0;y<n;y++) for(let x=0;x<n;x++){
+    const v=xoBoard[y][x];
+    if(!v) continue;
+    drawCenteredText(ctxXO, v, offX+x*cell+cell/2, offY+y*cell+cell/2, fs, true);
+  }
+
+  // cursor
+  ctxXO.lineWidth=4;
+  ctxXO.strokeStyle='#000';
+  ctxXO.strokeRect(offX+xoCursor.x*cell+2, offY+xoCursor.y*cell+2, cell-4, cell-4);
 }
-
-cvXO.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowLeft')  { e.preventDefault(); cursorXO.x = (cursorXO.x+2)%3; renderXO(); }
-  if (e.key === 'ArrowRight') { e.preventDefault(); cursorXO.x = (cursorXO.x+1)%3; renderXO(); }
-  if (e.key === 'ArrowUp')    { e.preventDefault(); cursorXO.y = (cursorXO.y+2)%3; renderXO(); }
-  if (e.key === 'ArrowDown')  { e.preventDefault(); cursorXO.y = (cursorXO.y+1)%3; renderXO(); }
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    if (xoMode === 'bot' && turnXO === BOT_SIDE) return;
-    doMoveXO(cursorXO.x, cursorXO.y);
-  }
-  if (e.key === '1') { e.preventDefault(); resetXO(); }
-  if (e.key === '2') { e.preventDefault(); undoXO(); }
-  if (e.key === '0') { e.preventDefault(); show('xoMode'); }
+cvXO.addEventListener('keydown', (e)=>{
+  const n=XO.size;
+  if (e.key==='ArrowLeft'){ e.preventDefault(); xoCursor.x=(xoCursor.x+n-1)%n; renderXO(); }
+  if (e.key==='ArrowRight'){ e.preventDefault(); xoCursor.x=(xoCursor.x+1)%n; renderXO(); }
+  if (e.key==='ArrowUp'){ e.preventDefault(); xoCursor.y=(xoCursor.y+n-1)%n; renderXO(); }
+  if (e.key==='ArrowDown'){ e.preventDefault(); xoCursor.y=(xoCursor.y+1)%n; renderXO(); }
+  if (e.key==='Enter'){ e.preventDefault(); xoMove(xoCursor.x, xoCursor.y); }
+  if (e.key==='1'){ e.preventDefault(); resetXO(); }
+  if (e.key==='2'){ e.preventDefault(); xoUndo(); }
 });
 
 /* =========================
-   CHESS (2P LOCAL, NO CDN)
-   - Đúng luật cơ bản: ăn, chiếu, chiếu bí, nhập thành, bắt tốt qua đường, phong cấp
+   CARO (Gomoku)
+========================= */
+const cvCaro = document.getElementById('cvCaro');
+const ctxCaro = cvCaro.getContext('2d');
+const statusCaro = document.getElementById('statusCaro');
+
+const CARO = { size:15, win:5 };
+let caroBoard, caroTurn, caroCursor, caroHist, caroOver;
+
+function resetCaro(){
+  const n=CARO.size;
+  caroBoard=newBoard(n);
+  caroTurn='X';
+  caroCursor={x: Math.floor(n/2), y: Math.floor(n/2)};
+  caroHist=[];
+  caroOver=false;
+  statusCaro.textContent = `Caro ${n}x${n} (win ${CARO.win}) — Lượt X.`;
+  cvCaro.setAttribute('tabindex','0');
+  cvCaro.focus();
+  renderCaro();
+}
+function caroMove(x,y){
+  if (caroOver) return;
+  if (caroBoard[y][x]) return;
+  caroHist.push({board: clone2D(caroBoard), turn: caroTurn, cursor:{...caroCursor}, over:caroOver});
+  caroBoard[y][x]=caroTurn;
+  if (checkWinLine(caroBoard,x,y,caroTurn,CARO.win)) {
+    caroOver=true;
+    statusCaro.textContent = `Thắng: ${caroTurn}! (1 New / 2 Undo / 0 Menu)`;
+  } else if (isFull(caroBoard)) {
+    caroOver=true;
+    statusCaro.textContent = `Hòa! (1 New / 2 Undo / 0 Menu)`;
+  } else {
+    caroTurn = (caroTurn==='X')?'O':'X';
+    statusCaro.textContent = `Caro ${CARO.size}x${CARO.size} — Lượt ${caroTurn}.`;
+  }
+  renderCaro();
+}
+function caroUndo(){
+  const last = caroHist.pop();
+  if(!last) return;
+  caroBoard=last.board; caroTurn=last.turn; caroCursor=last.cursor; caroOver=last.over;
+  statusCaro.textContent = `Undo. Lượt ${caroTurn}.`;
+  renderCaro();
+}
+function renderCaro(){
+  const n=CARO.size;
+  const W=cvCaro.width, H=cvCaro.height;
+  ctxCaro.clearRect(0,0,W,H);
+  const cell = Math.floor(Math.min(W,H)/n);
+  const offX = Math.floor((W - cell*n)/2);
+  const offY = Math.floor((H - cell*n)/2);
+
+  ctxCaro.lineWidth=1;
+  ctxCaro.strokeStyle='#111';
+  for(let i=0;i<=n;i++){
+    ctxCaro.beginPath(); ctxCaro.moveTo(offX+i*cell, offY); ctxCaro.lineTo(offX+i*cell, offY+n*cell); ctxCaro.stroke();
+    ctxCaro.beginPath(); ctxCaro.moveTo(offX, offY+i*cell); ctxCaro.lineTo(offX+n*cell, offY+i*cell); ctxCaro.stroke();
+  }
+
+  const fs = Math.max(10, Math.floor(cell*0.55));
+  ctxCaro.fillStyle='#111';
+  for(let y=0;y<n;y++) for(let x=0;x<n;x++){
+    const v=caroBoard[y][x];
+    if(!v) continue;
+    drawCenteredText(ctxCaro, v, offX+x*cell+cell/2, offY+y*cell+cell/2, fs, true);
+  }
+
+  ctxCaro.lineWidth=3;
+  ctxCaro.strokeStyle='#000';
+  ctxCaro.strokeRect(offX+caroCursor.x*cell+2, offY+caroCursor.y*cell+2, cell-4, cell-4);
+}
+cvCaro.addEventListener('keydown',(e)=>{
+  const n=CARO.size;
+  if (e.key==='ArrowLeft'){ e.preventDefault(); caroCursor.x=(caroCursor.x+n-1)%n; renderCaro(); }
+  if (e.key==='ArrowRight'){ e.preventDefault(); caroCursor.x=(caroCursor.x+1)%n; renderCaro(); }
+  if (e.key==='ArrowUp'){ e.preventDefault(); caroCursor.y=(caroCursor.y+n-1)%n; renderCaro(); }
+  if (e.key==='ArrowDown'){ e.preventDefault(); caroCursor.y=(caroCursor.y+1)%n; renderCaro(); }
+  if (e.key==='Enter'){ e.preventDefault(); caroMove(caroCursor.x, caroCursor.y); }
+  if (e.key==='1'){ e.preventDefault(); resetCaro(); }
+  if (e.key==='2'){ e.preventDefault(); caroUndo(); }
+});
+
+/* =========================
+   CHESS (2P local, no libs)
+   - ăn quân, chiếu, chiếu bí/hòa (đơn giản theo: hết nước)
+   - nhập thành, bắt tốt qua đường, phong cấp
 ========================= */
 const cvChess = document.getElementById('cvChess');
 const ctxChess = cvChess.getContext('2d');
 const statusChess = document.getElementById('statusChess');
 
-const UNI = {
+const CH_UNI = {
   'P':'♙','N':'♘','B':'♗','R':'♖','Q':'♕','K':'♔',
   'p':'♟','n':'♞','b':'♝','r':'♜','q':'♛','k':'♚',
 };
 
-function inBounds(x,y){ return x>=0 && x<8 && y>=0 && y<8; }
-function isWhitePiece(p){ return p && p === p.toUpperCase(); }
-function isBlackPiece(p){ return p && p === p.toLowerCase(); }
-function colorOf(p){ return isWhitePiece(p)?'w':(isBlackPiece(p)?'b':null); }
+function inBounds8(x,y){ return x>=0 && x<8 && y>=0 && y<8; }
+function isW(p){ return p && p===p.toUpperCase(); }
+function isB(p){ return p && p===p.toLowerCase(); }
+function col(p){ return isW(p)?'w':(isB(p)?'b':null); }
 
-function cloneState(s){
+function cloneChessState(s){
   return {
     board: s.board.map(r=>r.slice()),
     turn: s.turn,
     castle: {...s.castle},
     ep: s.ep ? {...s.ep} : null,
-    half: s.half,
     full: s.full
   };
 }
-
-function initialState(){
-  const b = [
-    ['r','n','b','q','k','b','n','r'],
-    ['p','p','p','p','p','p','p','p'],
-    [null,null,null,null,null,null,null,null],
-    [null,null,null,null,null,null,null,null],
-    [null,null,null,null,null,null,null,null],
-    [null,null,null,null,null,null,null,null],
-    ['P','P','P','P','P','P','P','P'],
-    ['R','N','B','Q','K','B','N','R'],
-  ];
+function chessInit(){
   return {
-    board: b,
+    board: [
+      ['r','n','b','q','k','b','n','r'],
+      ['p','p','p','p','p','p','p','p'],
+      [null,null,null,null,null,null,null,null],
+      [null,null,null,null,null,null,null,null],
+      [null,null,null,null,null,null,null,null],
+      [null,null,null,null,null,null,null,null],
+      ['P','P','P','P','P','P','P','P'],
+      ['R','N','B','Q','K','B','N','R'],
+    ],
     turn: 'w',
     castle: {K:true,Q:true,k:true,q:true},
     ep: null,
-    half: 0,
     full: 1
   };
 }
-
-let S, cursorC, selected, legalSet, flip, pendingPromo, historyC;
+let CS, cCursor, cSelected, cLegal, cFlip, cPromo, cHist;
 
 function resetChess(){
-  S = initialState();
-  cursorC = {x: 4, y: 6};
-  selected = null;
-  legalSet = new Set();
-  flip = false;
-  pendingPromo = null;
-  historyC = [];
+  CS = chessInit();
+  cCursor = {x:4,y:6};
+  cSelected = null;
+  cLegal = new Set();
+  cFlip = false;
+  cPromo = null;
+  cHist = [];
   statusChess.textContent = 'Cờ vua 2P: Trắng đi trước. OK chọn quân.';
-  cvChess.setAttribute('tabindex','0');
-  cvChess.focus();
+  cvChess.setAttribute('tabindex','0'); cvChess.focus();
   renderChess();
 }
 
-function viewToBoard(x,y){
-  if (!flip) return {x,y};
-  return {x:7-x, y:7-y};
-}
-function boardToView(x,y){
-  if (!flip) return {x,y};
-  return {x:7-x, y:7-y};
-}
-function keyXY(x,y){ return x+','+y; }
-
-function findKing(state, color){
+function cViewToBoard(x,y){ return cFlip ? {x:7-x,y:7-y} : {x,y}; }
+function cBoardToView(x,y){ return cFlip ? {x:7-x,y:7-y} : {x,y}; }
+function findKing8(s,color){
   const k = (color==='w')?'K':'k';
-  for (let y=0;y<8;y++) for (let x=0;x<8;x++) if (state.board[y][x]===k) return {x,y};
+  for(let y=0;y<8;y++) for(let x=0;x<8;x++) if(s.board[y][x]===k) return {x,y};
   return null;
 }
-
-function attackedBy(state, color, tx, ty){
-  // true nếu ô (tx,ty) bị color tấn công
-  const b = state.board;
-  const dir = (color==='w') ? -1 : 1;
-
-  // pawn attacks
-  const pawn = (color==='w')?'P':'p';
-  for (const dx of [-1,1]){
-    const x = tx - dx;
-    const y = ty - dir;
-    if (inBounds(x,y) && b[y][x]===pawn) return true;
+function attacked8(s, attacker, tx,ty){
+  const b=s.board;
+  const dir = (attacker==='w')?-1:1;
+  // pawn
+  const pawn = (attacker==='w')?'P':'p';
+  for(const dx of [-1,1]){
+    const x=tx-dx, y=ty-dir;
+    if(inBounds8(x,y) && b[y][x]===pawn) return true;
   }
-
   // knight
-  const knight = (color==='w')?'N':'n';
-  const KOFF = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
-  for (const [dx,dy] of KOFF){
+  const kn = (attacker==='w')?'N':'n';
+  const KOFF=[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
+  for(const [dx,dy] of KOFF){
     const x=tx-dx, y=ty-dy;
-    if (inBounds(x,y) && b[y][x]===knight) return true;
+    if(inBounds8(x,y) && b[y][x]===kn) return true;
   }
-
   // king
-  const king = (color==='w')?'K':'k';
-  for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++){
-    if (dx===0 && dy===0) continue;
+  const kg=(attacker==='w')?'K':'k';
+  for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+    if(!dx&&!dy) continue;
     const x=tx-dx, y=ty-dy;
-    if (inBounds(x,y) && b[y][x]===king) return true;
+    if(inBounds8(x,y) && b[y][x]===kg) return true;
   }
-
-  // sliders
-  function ray(dxs,dys, pieces){
-    let x=tx-dxs, y=ty-dys;
-    while(inBounds(x,y)){
+  function ray(dx,dy, pieces){
+    let x=tx-dx, y=ty-dy;
+    while(inBounds8(x,y)){
       const p=b[y][x];
-      if (p){
-        if (pieces.includes(p)) return true;
-        return false;
+      if(p){
+        return pieces.includes(p);
       }
-      x-=dxs; y-=dys;
+      x-=dx; y-=dy;
     }
     return false;
   }
-  const rook = (color==='w')?'R':'r';
-  const bishop = (color==='w')?'B':'b';
-  const queen = (color==='w')?'Q':'q';
-  if (ray(1,0,[rook,queen])) return true;
-  if (ray(-1,0,[rook,queen])) return true;
-  if (ray(0,1,[rook,queen])) return true;
-  if (ray(0,-1,[rook,queen])) return true;
-  if (ray(1,1,[bishop,queen])) return true;
-  if (ray(1,-1,[bishop,queen])) return true;
-  if (ray(-1,1,[bishop,queen])) return true;
-  if (ray(-1,-1,[bishop,queen])) return true;
-
+  const rook=(attacker==='w')?'R':'r';
+  const bish=(attacker==='w')?'B':'b';
+  const que=(attacker==='w')?'Q':'q';
+  if(ray(1,0,[rook,que])||ray(-1,0,[rook,que])||ray(0,1,[rook,que])||ray(0,-1,[rook,que])) return true;
+  if(ray(1,1,[bish,que])||ray(1,-1,[bish,que])||ray(-1,1,[bish,que])||ray(-1,-1,[bish,que])) return true;
   return false;
 }
-
-function inCheck(state, color){
-  const kpos = findKing(state, color);
-  if (!kpos) return false;
-  const opp = (color==='w')?'b':'w';
-  return attackedBy(state, opp, kpos.x, kpos.y);
+function inCheck8(s,color){
+  const k=findKing8(s,color);
+  if(!k) return false;
+  const opp=(color==='w')?'b':'w';
+  return attacked8(s,opp,k.x,k.y);
 }
 
-function pushMove(list, from, to, extra){
-  list.push({fx:from.x, fy:from.y, tx:to.x, ty:to.y, ...extra});
-}
+function cPush(list, fx,fy, tx,ty, extra){ list.push({fx,fy,tx,ty, ...extra}); }
 
-function genPseudoMoves(state, x, y){
-  const b = state.board;
-  const p = b[y][x];
-  if (!p) return [];
-  const c = colorOf(p);
-  if (c !== state.turn) return [];
-  const moves = [];
-  const opp = (c==='w')?'b':'w';
-
-  const add = (tx,ty,extra={}) => {
-    if (!inBounds(tx,ty)) return;
+function chessPseudo(s,x,y){
+  const b=s.board;
+  const p=b[y][x];
+  if(!p) return [];
+  const me=col(p);
+  if(me!==s.turn) return [];
+  const opp=(me==='w')?'b':'w';
+  const out=[];
+  const add=(tx,ty,extra={})=>{
+    if(!inBounds8(tx,ty)) return;
     const t=b[ty][tx];
-    if (!t) pushMove(moves,{x,y},{x:tx,y:ty},extra);
-    else {
-      if (colorOf(t)!==c) pushMove(moves,{x,y},{x:tx,y:ty},extra);
-    }
+    if(!t) cPush(out,x,y,tx,ty,extra);
+    else if(col(t)===opp) cPush(out,x,y,tx,ty,extra);
   };
-
-  const slide = (dirs) => {
-    for (const [dx,dy] of dirs){
+  const slide=(dirs)=>{
+    for(const [dx,dy] of dirs){
       let tx=x+dx, ty=y+dy;
-      while(inBounds(tx,ty)){
+      while(inBounds8(tx,ty)){
         const t=b[ty][tx];
-        if (!t){ pushMove(moves,{x,y},{x:tx,y:ty},{}); }
-        else {
-          if (colorOf(t)!==c) pushMove(moves,{x,y},{x:tx,y:ty},{});
-          break;
-        }
+        if(!t) cPush(out,x,y,tx,ty,{});
+        else { if(col(t)===opp) cPush(out,x,y,tx,ty,{}); break; }
         tx+=dx; ty+=dy;
       }
     }
   };
 
-  if (p==='P' || p==='p'){
-    const dir = (c==='w')?-1:1;
-    const startRank = (c==='w')?6:1;
-    const lastRank = (c==='w')?0:7;
+  if(p==='P'||p==='p'){
+    const dir=(me==='w')?-1:1;
+    const start=(me==='w')?6:1;
+    const last=(me==='w')?0:7;
 
-    // forward 1
-    if (inBounds(x,y+dir) && !b[y+dir][x]){
-      if (y+dir===lastRank) pushMove(moves,{x,y},{x,y:y+dir},{promo:true});
-      else pushMove(moves,{x,y},{x,y:y+dir},{});
-      // forward 2
-      if (y===startRank && !b[y+2*dir][x]) pushMove(moves,{x,y},{x,y:y+2*dir},{double:true});
+    if(inBounds8(x,y+dir) && !b[y+dir][x]){
+      if(y+dir===last) cPush(out,x,y,x,y+dir,{promo:true});
+      else cPush(out,x,y,x,y+dir,{});
+      if(y===start && !b[y+2*dir][x]) cPush(out,x,y,x,y+2*dir,{double:true});
     }
-
-    // captures
-    for (const dx of [-1,1]){
+    for(const dx of [-1,1]){
       const tx=x+dx, ty=y+dir;
-      if (!inBounds(tx,ty)) continue;
+      if(!inBounds8(tx,ty)) continue;
       const t=b[ty][tx];
-      if (t && colorOf(t)===opp){
-        if (ty===lastRank) pushMove(moves,{x,y},{x:tx,y:ty},{promo:true});
-        else pushMove(moves,{x,y},{x:tx,y:ty},{});
+      if(t && col(t)===opp){
+        if(ty===last) cPush(out,x,y,tx,ty,{promo:true});
+        else cPush(out,x,y,tx,ty,{});
       }
     }
-
     // en passant
-    if (state.ep){
-      const epx=state.ep.x, epy=state.ep.y;
-      if (epy===y+dir && Math.abs(epx-x)===1){
-        pushMove(moves,{x,y},{x:epx,y:epy},{ep:true});
+    if(s.ep){
+      if(s.ep.y===y+dir && Math.abs(s.ep.x-x)===1){
+        cPush(out,x,y,s.ep.x,s.ep.y,{ep:true});
       }
     }
-  }
-  else if (p==='N' || p==='n'){
+  } else if(p==='N'||p==='n'){
     const OFF=[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
-    for (const [dx,dy] of OFF) add(x+dx,y+dy,{});
-  }
-  else if (p==='B' || p==='b'){
+    for(const [dx,dy] of OFF) add(x+dx,y+dy,{});
+  } else if(p==='B'||p==='b'){
     slide([[1,1],[1,-1],[-1,1],[-1,-1]]);
-  }
-  else if (p==='R' || p==='r'){
+  } else if(p==='R'||p==='r'){
     slide([[1,0],[-1,0],[0,1],[0,-1]]);
-  }
-  else if (p==='Q' || p==='q'){
+  } else if(p==='Q'||p==='q'){
     slide([[1,1],[1,-1],[-1,1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]]);
-  }
-  else if (p==='K' || p==='k'){
-    for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++){
-      if (dx===0 && dy===0) continue;
+  } else if(p==='K'||p==='k'){
+    for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+      if(!dx&&!dy) continue;
       add(x+dx,y+dy,{});
     }
     // castling
-    if (c==='w' && y===7 && x===4){
-      // king side
-      if (state.castle.K && !b[7][5] && !b[7][6]){
-        // squares not attacked: e1 f1 g1
-        if (!inCheck(state,'w') && !attackedBy(state,'b',5,7) && !attackedBy(state,'b',6,7)){
-          pushMove(moves,{x,y},{x:6,y:7},{castle:'K'});
-        }
+    if(me==='w' && x===4 && y===7){
+      if(s.castle.K && !b[7][5] && !b[7][6]){
+        if(!inCheck8(s,'w') && !attacked8(s,'b',5,7) && !attacked8(s,'b',6,7)) cPush(out,4,7,6,7,{castle:'K'});
       }
-      // queen side
-      if (state.castle.Q && !b[7][3] && !b[7][2] && !b[7][1]){
-        if (!inCheck(state,'w') && !attackedBy(state,'b',3,7) && !attackedBy(state,'b',2,7)){
-          pushMove(moves,{x,y},{x:2,y:7},{castle:'Q'});
-        }
+      if(s.castle.Q && !b[7][3] && !b[7][2] && !b[7][1]){
+        if(!inCheck8(s,'w') && !attacked8(s,'b',3,7) && !attacked8(s,'b',2,7)) cPush(out,4,7,2,7,{castle:'Q'});
       }
     }
-    if (c==='b' && y===0 && x===4){
-      if (state.castle.k && !b[0][5] && !b[0][6]){
-        if (!inCheck(state,'b') && !attackedBy(state,'w',5,0) && !attackedBy(state,'w',6,0)){
-          pushMove(moves,{x,y},{x:6,y:0},{castle:'k'});
-        }
+    if(me==='b' && x===4 && y===0){
+      if(s.castle.k && !b[0][5] && !b[0][6]){
+        if(!inCheck8(s,'b') && !attacked8(s,'w',5,0) && !attacked8(s,'w',6,0)) cPush(out,4,0,6,0,{castle:'k'});
       }
-      if (state.castle.q && !b[0][3] && !b[0][2] && !b[0][1]){
-        if (!inCheck(state,'b') && !attackedBy(state,'w',3,0) && !attackedBy(state,'w',2,0)){
-          pushMove(moves,{x,y},{x:2,y:0},{castle:'q'});
-        }
+      if(s.castle.q && !b[0][3] && !b[0][2] && !b[0][1]){
+        if(!inCheck8(s,'b') && !attacked8(s,'w',3,0) && !attacked8(s,'w',2,0)) cPush(out,4,0,2,0,{castle:'q'});
       }
     }
-  }
-
-  return moves;
-}
-
-function applyMove(state, mv, promoPiece){
-  // returns newState (mutated clone), assumes mv is legal
-  const ns = cloneState(state);
-  const b = ns.board;
-  const p = b[mv.fy][mv.fx];
-  const c = colorOf(p);
-  const opp = (c==='w')?'b':'w';
-
-  // halfmove reset
-  const captured = b[mv.ty][mv.tx];
-  const isPawn = (p==='P'||p==='p');
-  ns.half = (isPawn || captured || mv.ep) ? 0 : (ns.half+1);
-
-  // clear ep default
-  ns.ep = null;
-
-  // handle castling rook move
-  if (mv.castle){
-    if (mv.castle==='K'){ // white king side
-      // move king
-      b[7][4]=null; b[7][6]='K';
-      // move rook h1->f1
-      b[7][7]=null; b[7][5]='R';
-    } else if (mv.castle==='Q'){ // white queen side
-      b[7][4]=null; b[7][2]='K';
-      b[7][0]=null; b[7][3]='R';
-    } else if (mv.castle==='k'){ // black king side
-      b[0][4]=null; b[0][6]='k';
-      b[0][7]=null; b[0][5]='r';
-    } else if (mv.castle==='q'){ // black queen side
-      b[0][4]=null; b[0][2]='k';
-      b[0][0]=null; b[0][3]='r';
-    }
-    // update castle rights
-    if (c==='w'){ ns.castle.K=false; ns.castle.Q=false; }
-    else { ns.castle.k=false; ns.castle.q=false; }
-  } else {
-    // en passant capture
-    if (mv.ep){
-      // pawn moves to ep square, capture pawn behind
-      b[mv.fy][mv.fx]=null;
-      b[mv.ty][mv.tx]=p;
-      const capY = (c==='w') ? mv.ty+1 : mv.ty-1;
-      b[capY][mv.tx]=null;
-    } else {
-      // normal move/capture
-      b[mv.fy][mv.fx]=null;
-      // promotion
-      if (mv.promo){
-        const prom = promoPiece || (c==='w'?'Q':'q');
-        b[mv.ty][mv.tx]=prom;
-      } else {
-        b[mv.ty][mv.tx]=p;
-      }
-    }
-
-    // set ep square if pawn double
-    if (mv.double){
-      const epy = (c==='w') ? mv.ty+1 : mv.ty-1;
-      ns.ep = {x: mv.tx, y: epy};
-    }
-
-    // update castling rights if king/rook moved or rook captured
-    if (p==='K'){ ns.castle.K=false; ns.castle.Q=false; }
-    if (p==='k'){ ns.castle.k=false; ns.castle.q=false; }
-
-    if (p==='R' && mv.fy===7 && mv.fx===0) ns.castle.Q=false;
-    if (p==='R' && mv.fy===7 && mv.fx===7) ns.castle.K=false;
-    if (p==='r' && mv.fy===0 && mv.fx===0) ns.castle.q=false;
-    if (p==='r' && mv.fy===0 && mv.fx===7) ns.castle.k=false;
-
-    // rook captured impacts castle
-    if (captured==='R' && mv.ty===7 && mv.tx===0) ns.castle.Q=false;
-    if (captured==='R' && mv.ty===7 && mv.tx===7) ns.castle.K=false;
-    if (captured==='r' && mv.ty===0 && mv.tx===0) ns.castle.q=false;
-    if (captured==='r' && mv.ty===0 && mv.tx===7) ns.castle.k=false;
-  }
-
-  // swap turn + fullmove
-  if (ns.turn==='b') ns.full++;
-  ns.turn = (ns.turn==='w')?'b':'w';
-  return ns;
-}
-
-function legalMovesFrom(state, x, y){
-  const pseudo = genPseudoMoves(state, x, y);
-  const out = [];
-  for (const mv of pseudo){
-    // if promotion, test with queen for legality (king safety), actual piece chosen later
-    const test = applyMove(state, mv, (state.turn==='w'?'Q':'q'));
-    const me = (state.turn==='w')?'w':'b';
-    // after applyMove, turn changed, so "me" should be opposite of test.turn
-    const myColor = (test.turn==='w')?'b':'w';
-    if (!inCheck(test, myColor)) out.push(mv);
   }
   return out;
 }
 
-function anyLegalMove(state){
-  for (let y=0;y<8;y++) for (let x=0;x<8;x++){
-    const p = state.board[y][x];
-    if (!p) continue;
-    if (colorOf(p) !== state.turn) continue;
-    const ms = legalMovesFrom(state, x, y);
-    if (ms.length) return true;
+function chessApply(s, mv, promoPiece){
+  const ns=cloneChessState(s);
+  const b=ns.board;
+  const p=b[mv.fy][mv.fx];
+  const me=col(p);
+  const opp=(me==='w')?'b':'w';
+  ns.ep=null;
+
+  const captured = b[mv.ty][mv.tx];
+
+  // castling
+  if(mv.castle){
+    if(mv.castle==='K'){ b[7][4]=null; b[7][6]='K'; b[7][7]=null; b[7][5]='R'; ns.castle.K=false; ns.castle.Q=false; }
+    if(mv.castle==='Q'){ b[7][4]=null; b[7][2]='K'; b[7][0]=null; b[7][3]='R'; ns.castle.K=false; ns.castle.Q=false; }
+    if(mv.castle==='k'){ b[0][4]=null; b[0][6]='k'; b[0][7]=null; b[0][5]='r'; ns.castle.k=false; ns.castle.q=false; }
+    if(mv.castle==='q'){ b[0][4]=null; b[0][2]='k'; b[0][0]=null; b[0][3]='r'; ns.castle.k=false; ns.castle.q=false; }
+  } else {
+    // en passant
+    if(mv.ep){
+      b[mv.fy][mv.fx]=null;
+      b[mv.ty][mv.tx]=p;
+      const capY = (me==='w') ? mv.ty+1 : mv.ty-1;
+      b[capY][mv.tx]=null;
+    } else {
+      b[mv.fy][mv.fx]=null;
+      if(mv.promo){
+        b[mv.ty][mv.tx]=promoPiece || (me==='w'?'Q':'q');
+      } else {
+        b[mv.ty][mv.tx]=p;
+      }
+    }
+    if(mv.double){
+      const epy = (me==='w') ? mv.ty+1 : mv.ty-1;
+      ns.ep={x:mv.tx,y:epy};
+    }
+
+    // castle rights updates
+    if(p==='K'){ ns.castle.K=false; ns.castle.Q=false; }
+    if(p==='k'){ ns.castle.k=false; ns.castle.q=false; }
+    if(p==='R' && mv.fy===7 && mv.fx===0) ns.castle.Q=false;
+    if(p==='R' && mv.fy===7 && mv.fx===7) ns.castle.K=false;
+    if(p==='r' && mv.fy===0 && mv.fx===0) ns.castle.q=false;
+    if(p==='r' && mv.fy===0 && mv.fx===7) ns.castle.k=false;
+
+    // rook captured affects
+    if(captured==='R' && mv.ty===7 && mv.tx===0) ns.castle.Q=false;
+    if(captured==='R' && mv.ty===7 && mv.tx===7) ns.castle.K=false;
+    if(captured==='r' && mv.ty===0 && mv.tx===0) ns.castle.q=false;
+    if(captured==='r' && mv.ty===0 && mv.tx===7) ns.castle.k=false;
+  }
+
+  if(ns.turn==='b') ns.full++;
+  ns.turn=(ns.turn==='w')?'b':'w';
+  return ns;
+}
+
+function chessLegalFrom(s,x,y){
+  const pseudo=chessPseudo(s,x,y);
+  const out=[];
+  for(const mv of pseudo){
+    const test=chessApply(s,mv,(s.turn==='w'?'Q':'q'));
+    const myColor = (test.turn==='w')?'b':'w';
+    if(!inCheck8(test,myColor)) out.push(mv);
+  }
+  return out;
+}
+function chessAnyLegal(s){
+  for(let y=0;y<8;y++) for(let x=0;x<8;x++){
+    const p=s.board[y][x];
+    if(!p) continue;
+    if(col(p)!==s.turn) continue;
+    if(chessLegalFrom(s,x,y).length) return true;
   }
   return false;
 }
-
-function gameStatusText(state){
-  const turnText = (state.turn==='w')?'Trắng':'Đen';
-  const chk = inCheck(state, state.turn);
-  if (!anyLegalMove(state)){
-    if (chk) return `Chiếu bí! ${(turnText)} thua. (1 New / 2 Undo)`;
-    return `Hết nước đi (Hòa). (1 New / 2 Undo)`;
+function chessStatus(s){
+  const turnTxt=(s.turn==='w')?'Trắng':'Đen';
+  const chk=inCheck8(s,s.turn);
+  if(!chessAnyLegal(s)){
+    if(chk) return `Chiếu bí! ${turnTxt} thua. (1 New / 2 Undo)`;
+    return `Hòa (hết nước). (1 New / 2 Undo)`;
   }
-  return `Lượt: ${turnText}${chk?' (đang bị chiếu)':''}. OK chọn quân.`;
+  return `Lượt: ${turnTxt}${chk?' (đang bị chiếu)':''}. OK chọn quân.`;
 }
 
-// UI state for chess
-function setSelection(xv,yv){
-  const bxy = viewToBoard(xv,yv);
-  const p = S.board[bxy.y][bxy.x];
-  if (!p || colorOf(p)!==S.turn){
-    selected = null;
-    legalSet.clear();
-    return;
-  }
-  selected = {x:bxy.x, y:bxy.y};
-  legalSet.clear();
-  const ms = legalMovesFrom(S, selected.x, selected.y);
-  for (const mv of ms) legalSet.add(keyXY(mv.tx, mv.ty));
+function chessSelect(xv,yv){
+  const b=cViewToBoard(xv,yv);
+  const p=CS.board[b.y][b.x];
+  if(!p || col(p)!==CS.turn){ cSelected=null; cLegal.clear(); return; }
+  cSelected={x:b.x,y:b.y};
+  cLegal.clear();
+  for(const mv of chessLegalFrom(CS,b.x,b.y)) cLegal.add(mv.tx+','+mv.ty);
 }
+function chessTryMove(xv,yv){
+  if(cPromo) return;
+  const to=cViewToBoard(xv,yv);
+  if(!cSelected){ chessSelect(xv,yv); renderChess(); return; }
+  // click own piece -> change selection
+  const p=CS.board[to.y][to.x];
+  if(p && col(p)===CS.turn){ chessSelect(xv,yv); renderChess(); return; }
+  const ms=chessLegalFrom(CS,cSelected.x,cSelected.y);
+  const mv=ms.find(m=>m.tx===to.x && m.ty===to.y);
+  if(!mv){ cSelected=null; cLegal.clear(); renderChess(); return; }
 
-function tryMoveTo(xv,yv){
-  if (pendingPromo) return;
-
-  const bxy = viewToBoard(xv,yv);
-  const tx=bxy.x, ty=bxy.y;
-
-  if (!selected){
-    setSelection(xv,yv);
-    renderChess();
-    return;
-  }
-
-  // if click own piece -> change selection
-  const pHere = S.board[ty][tx];
-  if (pHere && colorOf(pHere)===S.turn){
-    setSelection(xv,yv);
-    renderChess();
-    return;
-  }
-
-  // find matching legal move
-  const ms = legalMovesFrom(S, selected.x, selected.y);
-  const mv = ms.find(m => m.tx===tx && m.ty===ty);
-  if (!mv){
-    // cancel selection
-    selected = null;
-    legalSet.clear();
-    renderChess();
-    return;
-  }
-
-  // promotion needs choice
-  if (mv.promo){
-    pendingPromo = {mv, from:{...selected}};
+  if(mv.promo){
+    cPromo={mv};
     statusChess.textContent = 'Phong cấp: 1=Q 2=R 3=B 4=N';
     renderChess();
     return;
   }
-
-  historyC.push(cloneState(S));
-  S = applyMove(S, mv);
-  selected = null;
-  legalSet.clear();
-  statusChess.textContent = gameStatusText(S);
+  cHist.push(cloneChessState(CS));
+  CS = chessApply(CS,mv);
+  cSelected=null; cLegal.clear();
+  statusChess.textContent = chessStatus(CS);
   renderChess();
 }
-
-function doPromotion(key){
-  if (!pendingPromo) return;
-  const mapW = {'1':'Q','2':'R','3':'B','4':'N'};
-  const mapB = {'1':'q','2':'r','3':'b','4':'n'};
-  const promo = (historyC && historyC.length>=0); // dummy
-  const piece = (pendingPromo.mv && S.turn==='w') ? mapW[key] : mapB[key];
-  if (!piece) return;
-
-  historyC.push(cloneState(S));
-  S = applyMove(S, pendingPromo.mv, piece);
-  pendingPromo = null;
-  selected = null;
-  legalSet.clear();
-  statusChess.textContent = gameStatusText(S);
+function chessDoPromo(key){
+  if(!cPromo) return;
+  const mapW={'1':'Q','2':'R','3':'B','4':'N'};
+  const mapB={'1':'q','2':'r','3':'b','4':'n'};
+  const promoPiece = (CS.turn==='w') ? mapW[key] : mapB[key];
+  if(!promoPiece) return;
+  cHist.push(cloneChessState(CS));
+  CS = chessApply(CS, cPromo.mv, promoPiece);
+  cPromo=null;
+  cSelected=null; cLegal.clear();
+  statusChess.textContent = chessStatus(CS);
   renderChess();
 }
-
-function undoChess(){
-  const last = historyC.pop();
-  if (!last) return;
-  S = last;
-  pendingPromo = null;
-  selected = null;
-  legalSet.clear();
-  statusChess.textContent = gameStatusText(S);
+function chessUndo(){
+  const last=cHist.pop();
+  if(!last) return;
+  CS=last; cPromo=null; cSelected=null; cLegal.clear();
+  statusChess.textContent = chessStatus(CS);
   renderChess();
 }
 
 function renderChess(){
   const W=cvChess.width, H=cvChess.height;
   ctxChess.clearRect(0,0,W,H);
-
-  const cell = Math.floor(Math.min(W,H)/8);
-  const offX = Math.floor((W - cell*8)/2);
-  const offY = Math.floor((H - cell*8)/2);
+  const cell=Math.floor(Math.min(W,H)/8);
+  const offX=Math.floor((W-cell*8)/2);
+  const offY=Math.floor((H-cell*8)/2);
 
   // squares
-  for (let vy=0;vy<8;vy++) for (let vx=0;vx<8;vx++){
-    const dark = ((vx+vy)&1)===1;
+  for(let vy=0;vy<8;vy++) for(let vx=0;vx<8;vx++){
+    const dark=((vx+vy)&1)===1;
     ctxChess.fillStyle = dark ? '#b58863' : '#f0d9b5';
     ctxChess.fillRect(offX+vx*cell, offY+vy*cell, cell, cell);
   }
 
   // legal dots
-  if (selected){
-    for (let by=0;by<8;by++) for (let bx=0;bx<8;bx++){
-      if (!legalSet.has(keyXY(bx,by))) continue;
-      const v = boardToView(bx,by);
-      const cx=offX+v.x*cell+cell/2;
-      const cy=offY+v.y*cell+cell/2;
+  if(cSelected){
+    for(let by=0;by<8;by++) for(let bx=0;bx<8;bx++){
+      if(!cLegal.has(bx+','+by)) continue;
+      const v=cBoardToView(bx,by);
       ctxChess.fillStyle='rgba(0,0,0,0.25)';
       ctxChess.beginPath();
-      ctxChess.arc(cx,cy,cell*0.12,0,Math.PI*2);
+      ctxChess.arc(offX+v.x*cell+cell/2, offY+v.y*cell+cell/2, cell*0.12, 0, Math.PI*2);
       ctxChess.fill();
     }
   }
 
   // selected outline
-  if (selected){
-    const v = boardToView(selected.x, selected.y);
+  if(cSelected){
+    const v=cBoardToView(cSelected.x,cSelected.y);
     ctxChess.strokeStyle='#2b6cb0';
     ctxChess.lineWidth=5;
     ctxChess.strokeRect(offX+v.x*cell+3, offY+v.y*cell+3, cell-6, cell-6);
   }
 
-  // cursor outline (view coords)
+  // cursor outline
   ctxChess.strokeStyle='#111';
   ctxChess.lineWidth=5;
-  ctxChess.strokeRect(offX+cursorC.x*cell+2, offY+cursorC.y*cell+2, cell-4, cell-4);
+  ctxChess.strokeRect(offX+cCursor.x*cell+2, offY+cCursor.y*cell+2, cell-4, cell-4);
 
-  // pieces (iterate board coords)
-  ctxChess.font = `bold ${Math.floor(cell*0.72)}px sans-serif`;
+  // pieces
+  ctxChess.fillStyle='#111';
+  const fs=Math.floor(cell*0.72);
+  ctxChess.font='bold '+fs+'px sans-serif';
   ctxChess.textAlign='center';
   ctxChess.textBaseline='middle';
-  for (let by=0;by<8;by++) for (let bx=0;bx<8;bx++){
-    const p = S.board[by][bx];
-    if (!p) continue;
-    const v = boardToView(bx,by);
-    const cx=offX+v.x*cell+cell/2;
-    const cy=offY+v.y*cell+cell/2;
-    ctxChess.fillStyle='#111';
-    ctxChess.fillText(UNI[p]||p, cx, cy+1);
+  for(let by=0;by<8;by++) for(let bx=0;bx<8;bx++){
+    const p=CS.board[by][bx];
+    if(!p) continue;
+    const v=cBoardToView(bx,by);
+    ctxChess.fillText(CH_UNI[p]||p, offX+v.x*cell+cell/2, offY+v.y*cell+cell/2+1);
   }
 
-  // promo banner
-  if (pendingPromo){
+  if(cPromo){
     ctxChess.fillStyle='rgba(255,255,255,0.92)';
     ctxChess.fillRect(10,10,W-20,52);
     ctxChess.strokeStyle='#111';
@@ -782,32 +782,735 @@ function renderChess(){
     ctxChess.fillText('Phong cấp: 1=Q 2=R 3=B 4=N', 18, 42);
   }
 }
-
-cvChess.addEventListener('keydown', (e) => {
-  if (pendingPromo){
-    if (['1','2','3','4'].includes(e.key)){ e.preventDefault(); doPromotion(e.key); }
-    if (e.key==='Enter'){ e.preventDefault(); doPromotion('1'); } // default queen
-    if (e.key==='Backspace' || e.key==='Escape'){ e.preventDefault(); pendingPromo=null; statusChess.textContent=gameStatusText(S); renderChess(); }
+cvChess.addEventListener('keydown',(e)=>{
+  if(cPromo){
+    if(['1','2','3','4'].includes(e.key)){ e.preventDefault(); chessDoPromo(e.key); }
+    if(e.key==='Enter'){ e.preventDefault(); chessDoPromo('1'); }
+    if(e.key==='Escape'||e.key==='Backspace'){ e.preventDefault(); cPromo=null; statusChess.textContent=chessStatus(CS); renderChess(); }
     return;
   }
-
-  if (e.key === 'ArrowLeft')  { e.preventDefault(); cursorC.x = (cursorC.x+7)%8; renderChess(); }
-  if (e.key === 'ArrowRight') { e.preventDefault(); cursorC.x = (cursorC.x+1)%8; renderChess(); }
-  if (e.key === 'ArrowUp')    { e.preventDefault(); cursorC.y = (cursorC.y+7)%8; renderChess(); }
-  if (e.key === 'ArrowDown')  { e.preventDefault(); cursorC.y = (cursorC.y+1)%8; renderChess(); }
-
-  if (e.key === 'Enter'){
-    e.preventDefault();
-    tryMoveTo(cursorC.x, cursorC.y);
-  }
-
-  if (e.key === '1'){ e.preventDefault(); resetChess(); statusChess.textContent = gameStatusText(S); renderChess(); }
-  if (e.key === '2'){ e.preventDefault(); undoChess(); }
-  if (e.key === '3'){ e.preventDefault(); flip = !flip; renderChess(); }
-  if (e.key === '0'){ e.preventDefault(); show('menu'); }
+  if(e.key==='ArrowLeft'){ e.preventDefault(); cCursor.x=(cCursor.x+7)%8; renderChess(); }
+  if(e.key==='ArrowRight'){ e.preventDefault(); cCursor.x=(cCursor.x+1)%8; renderChess(); }
+  if(e.key==='ArrowUp'){ e.preventDefault(); cCursor.y=(cCursor.y+7)%8; renderChess(); }
+  if(e.key==='ArrowDown'){ e.preventDefault(); cCursor.y=(cCursor.y+1)%8; renderChess(); }
+  if(e.key==='Enter'){ e.preventDefault(); chessTryMove(cCursor.x,cCursor.y); }
+  if(e.key==='1'){ e.preventDefault(); resetChess(); statusChess.textContent=chessStatus(CS); renderChess(); }
+  if(e.key==='2'){ e.preventDefault(); chessUndo(); }
+  if(e.key==='3'){ e.preventDefault(); cFlip=!cFlip; renderChess(); }
 });
 
-// default start
+function resetChess(){
+  CS=chessInit();
+  cCursor={x:4,y:6};
+  cSelected=null;
+  cLegal=new Set();
+  cFlip=false;
+  cPromo=null;
+  cHist=[];
+  statusChess.textContent=chessStatus(CS);
+  cvChess.setAttribute('tabindex','0'); cvChess.focus();
+  renderChess();
+}
+
+/* =========================
+   XIANGQI (Cờ tướng) 2P
+   - đúng luật di chuyển, pháo, mã tắc, tượng/ sĩ cung, tốt qua sông, tướng đối mặt
+   - kiểm tra chiếu/chiếu bí (hết nước)
+========================= */
+const cvXQ = document.getElementById('cvXQ');
+const ctxXQ = cvXQ.getContext('2d');
+const statusXQ = document.getElementById('statusXQ');
+
+function xqInit(){
+  const E=null;
+  return {
+    board: [
+      ['r','h','e','a','k','a','e','h','r'],
+      [E,E,E,E,E,E,E,E,E],
+      [E,'c',E,E,E,E,E,'c',E],
+      ['p',E,'p',E,'p',E,'p',E,'p'],
+      [E,E,E,E,E,E,E,E,E],
+      [E,E,E,E,E,E,E,E,E],
+      ['P',E,'P',E,'P',E,'P',E,'P'],
+      [E,'C',E,E,E,E,E,'C',E],
+      [E,E,E,E,E,E,E,E,E],
+      ['R','H','E','A','K','A','E','H','R'],
+    ],
+    turn: 'r', // red first
+    flip: false
+  };
+}
+let XQ, xqCursor, xqSelected, xqLegal, xqHist;
+
+function xqClone(s){
+  return { board: s.board.map(r=>r.slice()), turn: s.turn, flip: s.flip };
+}
+function xqColor(p){
+  if(!p) return null;
+  return (p===p.toUpperCase())?'r':'b'; // uppercase = red
+}
+function xqOpp(c){ return c==='r'?'b':'r'; }
+function xqInBounds(x,y){ return x>=0&&x<9&&y>=0&&y<10; }
+function xqViewToBoard(x,y){
+  if(!XQ.flip) return {x,y};
+  return {x:8-x, y:9-y};
+}
+function xqBoardToView(x,y){
+  if(!XQ.flip) return {x,y};
+  return {x:8-x, y:9-y};
+}
+function xqPalaceOK(color, x,y){
+  // red palace: x 3..5, y 7..9 ; black palace: x 3..5, y 0..2
+  if(x<3||x>5) return false;
+  if(color==='r') return y>=7 && y<=9;
+  return y>=0 && y<=2;
+}
+function xqRiverCrossed(color, y){
+  // red crosses when y <=4 ; black crosses when y >=5
+  return (color==='r') ? (y<=4) : (y>=5);
+}
+function xqFindGeneral(s,color){
+  const g = (color==='r')?'K':'k';
+  for(let y=0;y<10;y++) for(let x=0;x<9;x++) if(s.board[y][x]===g) return {x,y};
+  return null;
+}
+function xqGeneralsFacing(s){
+  const rg=xqFindGeneral(s,'r');
+  const bg=xqFindGeneral(s,'b');
+  if(!rg || !bg) return false;
+  if(rg.x!==bg.x) return false;
+  const x=rg.x;
+  const y1=Math.min(rg.y,bg.y), y2=Math.max(rg.y,bg.y);
+  for(let y=y1+1;y<y2;y++){
+    if(s.board[y][x]) return false;
+  }
+  return true;
+}
+
+function xqAttackedBy(s, attacker, tx,ty){
+  const b=s.board;
+
+  // general "flying" line
+  if(xqGeneralsFacing(s)){
+    const rg=xqFindGeneral(s,'r');
+    const bg=xqFindGeneral(s,'b');
+    if(attacker==='r' && bg.x===tx && bg.y===ty) return true;
+    if(attacker==='b' && rg.x===tx && rg.y===ty) return true;
+  }
+
+  // pawn attacks (same as moves)
+  for(let y=0;y<10;y++) for(let x=0;x<9;x++){
+    const p=b[y][x];
+    if(!p) continue;
+    if(xqColor(p)!==attacker) continue;
+
+    const low=p.toLowerCase();
+    if(low==='p'){
+      const dir = (attacker==='r') ? -1 : 1;
+      // forward
+      if(x===tx && y+dir===ty) return true;
+      // sideways after crossed
+      if(xqRiverCrossed(attacker,y)){
+        if(y===ty && Math.abs(x-tx)===1) return true;
+      }
+    }
+    else if(low==='r'){ // chariot rook-line
+      if(x===tx){
+        const step = (y<ty)?1:-1;
+        let yy=y+step;
+        while(yy!==ty && !b[yy][x]) yy+=step;
+        if(yy===ty) return true;
+      }
+      if(y===ty){
+        const step = (x<tx)?1:-1;
+        let xx=x+step;
+        while(xx!==tx && !b[y][xx]) xx+=step;
+        if(xx===tx) return true;
+      }
+    }
+    else if(low==='c'){ // cannon: exactly one screen
+      if(x===tx){
+        const step=(y<ty)?1:-1;
+        let yy=y+step, screens=0;
+        while(yy!==ty){
+          if(b[yy][x]) screens++;
+          yy+=step;
+        }
+        if(screens===1) return true;
+      }
+      if(y===ty){
+        const step=(x<tx)?1:-1;
+        let xx=x+step, screens=0;
+        while(xx!==tx){
+          if(b[y][xx]) screens++;
+          xx+=step;
+        }
+        if(screens===1) return true;
+      }
+    }
+    else if(low==='h'){ // horse with leg block
+      const moves = [
+        {dx:2,dy:1, lx:1,ly:0},{dx:2,dy:-1,lx:1,ly:0},
+        {dx:-2,dy:1,lx:-1,ly:0},{dx:-2,dy:-1,lx:-1,ly:0},
+        {dx:1,dy:2,lx:0,ly:1},{dx:-1,dy:2,lx:0,ly:1},
+        {dx:1,dy:-2,lx:0,ly:-1},{dx:-1,dy:-2,lx:0,ly:-1},
+      ];
+      for(const m of moves){
+        if(x+m.dx===tx && y+m.dy===ty){
+          if(!b[y+m.ly][x+m.lx]) return true;
+        }
+      }
+    }
+    else if(low==='e'){ // elephant
+      const steps=[
+        {dx:2,dy:2, bx:1,by:1},{dx:2,dy:-2,bx:1,by:-1},
+        {dx:-2,dy:2,bx:-1,by:1},{dx:-2,dy:-2,bx:-1,by:-1},
+      ];
+      for(const st of steps){
+        if(x+st.dx===tx && y+st.dy===ty){
+          if(b[y+st.by][x+st.bx]) continue;
+          // river rule
+          if(attacker==='r' && (y+st.dy)<5) continue;
+          if(attacker==='b' && (y+st.dy)>4) continue;
+          return true;
+        }
+      }
+    }
+    else if(low==='a'){ // advisor
+      const ds=[[1,1],[1,-1],[-1,1],[-1,-1]];
+      for(const [dx,dy] of ds){
+        if(x+dx===tx && y+dy===ty && xqPalaceOK(attacker, tx,ty)) return true;
+      }
+    }
+    else if(low==='k'){ // general adjacent within palace
+      const ds=[[1,0],[-1,0],[0,1],[0,-1]];
+      for(const [dx,dy] of ds){
+        if(x+dx===tx && y+dy===ty && xqPalaceOK(attacker, tx,ty)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+function xqInCheck(s,color){
+  const g=xqFindGeneral(s,color);
+  if(!g) return false;
+  const opp=xqOpp(color);
+  // also invalid if generals facing
+  if(xqGeneralsFacing(s)) return true;
+  return xqAttackedBy(s,opp,g.x,g.y);
+}
+
+function xqPseudoMoves(s,x,y){
+  const b=s.board;
+  const p=b[y][x];
+  if(!p) return [];
+  const me=xqColor(p);
+  if(me!==s.turn) return [];
+  const opp=xqOpp(me);
+  const out=[];
+  const low=p.toLowerCase();
+
+  const push=(tx,ty,extra={})=>{
+    if(!xqInBounds(tx,ty)) return;
+    const t=b[ty][tx];
+    if(!t) out.push({fx:x,fy:y,tx,ty,...extra});
+    else if(xqColor(t)===opp) out.push({fx:x,fy:y,tx,ty,...extra});
+  };
+
+  if(low==='r'){ // chariot
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    for(const [dx,dy] of dirs){
+      let tx=x+dx, ty=y+dy;
+      while(xqInBounds(tx,ty)){
+        const t=b[ty][tx];
+        if(!t) out.push({fx:x,fy:y,tx,ty});
+        else { if(xqColor(t)===opp) out.push({fx:x,fy:y,tx,ty}); break; }
+        tx+=dx; ty+=dy;
+      }
+    }
+  }
+  else if(low==='c'){ // cannon
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    for(const [dx,dy] of dirs){
+      let tx=x+dx, ty=y+dy;
+      // non-capture until hit first piece
+      while(xqInBounds(tx,ty) && !b[ty][tx]){
+        out.push({fx:x,fy:y,tx,ty});
+        tx+=dx; ty+=dy;
+      }
+      // now must have exactly one screen then capture
+      tx+=dx; ty+=dy;
+      while(xqInBounds(tx,ty)){
+        const t=b[ty][tx];
+        if(t){
+          if(xqColor(t)===opp) out.push({fx:x,fy:y,tx,ty});
+          break;
+        }
+        tx+=dx; ty+=dy;
+      }
+    }
+  }
+  else if(low==='h'){ // horse with leg
+    const moves = [
+      {dx:2,dy:1, lx:1,ly:0},{dx:2,dy:-1,lx:1,ly:0},
+      {dx:-2,dy:1,lx:-1,ly:0},{dx:-2,dy:-1,lx:-1,ly:0},
+      {dx:1,dy:2,lx:0,ly:1},{dx:-1,dy:2,lx:0,ly:1},
+      {dx:1,dy:-2,lx:0,ly:-1},{dx:-1,dy:-2,lx:0,ly:-1},
+    ];
+    for(const m of moves){
+      const lx=x+m.lx, ly=y+m.ly;
+      if(!xqInBounds(lx,ly) || b[ly][lx]) continue;
+      push(x+m.dx,y+m.dy);
+    }
+  }
+  else if(low==='e'){ // elephant
+    const steps=[
+      {dx:2,dy:2, bx:1,by:1},{dx:2,dy:-2,bx:1,by:-1},
+      {dx:-2,dy:2,bx:-1,by:1},{dx:-2,dy:-2,bx:-1,by:-1},
+    ];
+    for(const st of steps){
+      const mx=x+st.bx, my=y+st.by;
+      const tx=x+st.dx, ty=y+st.dy;
+      if(!xqInBounds(tx,ty)) continue;
+      if(b[my][mx]) continue; // blocked eye
+      // river rule
+      if(me==='r' && ty<5) continue;
+      if(me==='b' && ty>4) continue;
+      push(tx,ty);
+    }
+  }
+  else if(low==='a'){ // advisor
+    const ds=[[1,1],[1,-1],[-1,1],[-1,-1]];
+    for(const [dx,dy] of ds){
+      const tx=x+dx, ty=y+dy;
+      if(xqPalaceOK(me,tx,ty)) push(tx,ty);
+    }
+  }
+  else if(low==='k'){ // general
+    const ds=[[1,0],[-1,0],[0,1],[0,-1]];
+    for(const [dx,dy] of ds){
+      const tx=x+dx, ty=y+dy;
+      if(xqPalaceOK(me,tx,ty)) push(tx,ty);
+    }
+    // flying general capture if line clear
+    const og=xqFindGeneral(s,opp);
+    if(og && og.x===x){
+      const y1=Math.min(y,og.y), y2=Math.max(y,og.y);
+      let clear=true;
+      for(let yy=y1+1;yy<y2;yy++) if(b[yy][x]) { clear=false; break; }
+      if(clear) out.push({fx:x,fy:y,tx:og.x,ty:og.y});
+    }
+  }
+  else if(low==='p'){ // pawn
+    const dir = (me==='r')?-1:1;
+    push(x,y+dir);
+    if(xqRiverCrossed(me,y)){
+      push(x-1,y);
+      push(x+1,y);
+    }
+  }
+  return out;
+}
+
+function xqApply(s,mv){
+  const ns=xqClone(s);
+  const b=ns.board;
+  const p=b[mv.fy][mv.fx];
+  b[mv.fy][mv.fx]=null;
+  b[mv.ty][mv.tx]=p;
+  ns.turn=xqOpp(ns.turn);
+  return ns;
+}
+
+function xqLegalFrom(s,x,y){
+  const ms=xqPseudoMoves(s,x,y);
+  const out=[];
+  for(const mv of ms){
+    const test=xqApply(s,mv);
+    const myColor = xqOpp(test.turn); // moved side
+    // illegal if generals face OR own general in check
+    if(xqGeneralsFacing(test)) continue;
+    if(xqInCheck(test,myColor)) continue;
+    out.push(mv);
+  }
+  return out;
+}
+function xqAnyLegal(s){
+  for(let y=0;y<10;y++) for(let x=0;x<9;x++){
+    const p=s.board[y][x];
+    if(!p) continue;
+    if(xqColor(p)!==s.turn) continue;
+    if(xqLegalFrom(s,x,y).length) return true;
+  }
+  return false;
+}
+function xqStatus(s){
+  const turnTxt=(s.turn==='r')?'Đỏ':'Đen';
+  const chk = xqInCheck(s,s.turn);
+  if(!xqAnyLegal(s)){
+    if(chk) return `Chiếu bí! ${turnTxt} thua. (1 New / 2 Undo)`;
+    return `Hòa (hết nước). (1 New / 2 Undo)`;
+  }
+  return `Lượt: ${turnTxt}${chk?' (đang bị chiếu)':''}. OK chọn quân.`;
+}
+
+function resetXQ(){
+  XQ=xqInit();
+  xqCursor={x:4,y:8}; // gần tướng đỏ
+  xqSelected=null;
+  xqLegal=new Set();
+  xqHist=[];
+  statusXQ.textContent=xqStatus(XQ);
+  cvXQ.setAttribute('tabindex','0'); cvXQ.focus();
+  renderXQ();
+}
+function xqSelect(vx,vy){
+  const b=xqViewToBoard(vx,vy);
+  const p=XQ.board[b.y][b.x];
+  if(!p || xqColor(p)!==XQ.turn){
+    xqSelected=null; xqLegal.clear(); return;
+  }
+  xqSelected={x:b.x,y:b.y};
+  xqLegal.clear();
+  for(const mv of xqLegalFrom(XQ,b.x,b.y)) xqLegal.add(mv.tx+','+mv.ty);
+}
+function xqTryMove(vx,vy){
+  const to=xqViewToBoard(vx,vy);
+  if(!xqSelected){ xqSelect(vx,vy); renderXQ(); return; }
+  const pHere=XQ.board[to.y][to.x];
+  if(pHere && xqColor(pHere)===XQ.turn){ xqSelect(vx,vy); renderXQ(); return; }
+
+  const ms=xqLegalFrom(XQ,xqSelected.x,xqSelected.y);
+  const mv=ms.find(m=>m.tx===to.x && m.ty===to.y);
+  if(!mv){ xqSelected=null; xqLegal.clear(); renderXQ(); return; }
+
+  xqHist.push(xqClone(XQ));
+  XQ=xqApply(XQ,mv);
+  xqSelected=null; xqLegal.clear();
+  statusXQ.textContent=xqStatus(XQ);
+  renderXQ();
+}
+function xqUndo(){
+  const last=xqHist.pop();
+  if(!last) return;
+  XQ=last;
+  xqSelected=null; xqLegal.clear();
+  statusXQ.textContent=xqStatus(XQ);
+  renderXQ();
+}
+function renderXQ(){
+  const W=cvXQ.width, H=cvXQ.height;
+  ctxXQ.clearRect(0,0,W,H);
+
+  const cols=9, rows=10;
+  const cell=Math.floor(Math.min(W/cols, H/rows));
+  const offX=Math.floor((W-cell*cols)/2);
+  const offY=Math.floor((H-cell*rows)/2);
+
+  // grid
+  ctxXQ.strokeStyle='#111';
+  ctxXQ.lineWidth=1;
+  for(let y=0;y<rows;y++){
+    ctxXQ.beginPath();
+    ctxXQ.moveTo(offX, offY+y*cell);
+    ctxXQ.lineTo(offX+(cols-1)*cell, offY+y*cell);
+    ctxXQ.stroke();
+  }
+  for(let x=0;x<cols;x++){
+    ctxXQ.beginPath();
+    ctxXQ.moveTo(offX+x*cell, offY);
+    ctxXQ.lineTo(offX+x*cell, offY+(rows-1)*cell);
+    ctxXQ.stroke();
+  }
+
+  // river text
+  ctxXQ.fillStyle='rgba(0,0,0,0.35)';
+  ctxXQ.font='bold 14px sans-serif';
+  ctxXQ.textAlign='center';
+  ctxXQ.fillText('SÔNG', offX+4*cell, offY+4.5*cell);
+
+  // legal dots
+  if(xqSelected){
+    for(let by=0;by<rows;by++) for(let bx=0;bx<cols;bx++){
+      if(!xqLegal.has(bx+','+by)) continue;
+      const v=xqBoardToView(bx,by);
+      const cx=offX+v.x*cell;
+      const cy=offY+v.y*cell;
+      ctxXQ.fillStyle='rgba(0,0,0,0.25)';
+      ctxXQ.beginPath();
+      ctxXQ.arc(cx,cy,cell*0.18,0,Math.PI*2);
+      ctxXQ.fill();
+    }
+  }
+
+  // selected outline
+  if(xqSelected){
+    const v=xqBoardToView(xqSelected.x,xqSelected.y);
+    ctxXQ.strokeStyle='#2b6cb0';
+    ctxXQ.lineWidth=4;
+    ctxXQ.strokeRect(offX+v.x*cell-cell/2+2, offY+v.y*cell-cell/2+2, cell-4, cell-4);
+  }
+
+  // cursor outline (view coords are intersections; we draw square around it)
+  ctxXQ.strokeStyle='#111';
+  ctxXQ.lineWidth=4;
+  ctxXQ.strokeRect(offX+xqCursor.x*cell-cell/2+2, offY+xqCursor.y*cell-cell/2+2, cell-4, cell-4);
+
+  // pieces as circles + text
+  const pieceLabel = (p)=>{
+    const low=p.toLowerCase();
+    if(low==='k') return '将';
+    if(low==='a') return '士';
+    if(low==='e') return '象';
+    if(low==='h') return '马';
+    if(low==='r') return '车';
+    if(low==='c') return '炮';
+    if(low==='p') return '兵';
+    return p;
+  };
+
+  for(let by=0;by<rows;by++) for(let bx=0;bx<cols;bx++){
+    const p=XQ.board[by][bx];
+    if(!p) continue;
+    const v=xqBoardToView(bx,by);
+    const cx=offX+v.x*cell;
+    const cy=offY+v.y*cell;
+
+    ctxXQ.fillStyle='rgba(255,255,255,0.95)';
+    ctxXQ.beginPath();
+    ctxXQ.arc(cx,cy,cell*0.38,0,Math.PI*2);
+    ctxXQ.fill();
+
+    ctxXQ.strokeStyle='#111';
+    ctxXQ.lineWidth=2;
+    ctxXQ.beginPath();
+    ctxXQ.arc(cx,cy,cell*0.38,0,Math.PI*2);
+    ctxXQ.stroke();
+
+    const c = xqColor(p);
+    ctxXQ.fillStyle = (c==='r') ? '#b00020' : '#111';
+    drawCenteredText(ctxXQ, pieceLabel(p), cx, cy, Math.floor(cell*0.42), true);
+  }
+}
+cvXQ.addEventListener('keydown',(e)=>{
+  const cols=9, rows=10;
+  if(e.key==='ArrowLeft'){ e.preventDefault(); xqCursor.x=(xqCursor.x+cols-1)%cols; renderXQ(); }
+  if(e.key==='ArrowRight'){ e.preventDefault(); xqCursor.x=(xqCursor.x+1)%cols; renderXQ(); }
+  if(e.key==='ArrowUp'){ e.preventDefault(); xqCursor.y=(xqCursor.y+rows-1)%rows; renderXQ(); }
+  if(e.key==='ArrowDown'){ e.preventDefault(); xqCursor.y=(xqCursor.y+1)%rows; renderXQ(); }
+  if(e.key==='Enter'){ e.preventDefault(); xqTryMove(xqCursor.x,xqCursor.y); }
+  if(e.key==='1'){ e.preventDefault(); resetXQ(); }
+  if(e.key==='2'){ e.preventDefault(); xqUndo(); }
+  if(e.key==='3'){ e.preventDefault(); XQ.flip=!XQ.flip; renderXQ(); }
+});
+
+/* =========================
+   GO (2P local)
+   - capture, suicide forbidden, simple ko (immediate repetition)
+   - pass: key '5'
+========================= */
+const cvGo = document.getElementById('cvGo');
+const ctxGo = cvGo.getContext('2d');
+const statusGo = document.getElementById('statusGo');
+
+const GO = { size: 9 };
+let gBoard, gTurn, gCursor, gHist, gOver, gPassStreak, gCapB, gCapW, gPrevHash, gPrevPrevHash;
+
+function goNewBoard(n){ return Array.from({length:n},()=>Array(n).fill('.')); }
+function goClone(b){ return b.map(r=>r.slice()); }
+function goIn(n,x,y){ return x>=0&&x<n&&y>=0&&y<n; }
+function goNeighbors(n,x,y){
+  const out=[];
+  if(goIn(n,x-1,y)) out.push([x-1,y]);
+  if(goIn(n,x+1,y)) out.push([x+1,y]);
+  if(goIn(n,x,y-1)) out.push([x,y-1]);
+  if(goIn(n,x,y+1)) out.push([x,y+1]);
+  return out;
+}
+function goHash(b){
+  return b.map(r=>r.join('')).join('|');
+}
+function goGroup(b, x,y){
+  const n=b.length;
+  const color=b[y][x];
+  const q=[[x,y]];
+  const seen=new Set([x+','+y]);
+  const stones=[];
+  let libs=0;
+  while(q.length){
+    const [cx,cy]=q.pop();
+    stones.push([cx,cy]);
+    for(const [nx,ny] of goNeighbors(n,cx,cy)){
+      const v=b[ny][nx];
+      if(v==='.') libs++;
+      else if(v===color){
+        const k=nx+','+ny;
+        if(!seen.has(k)){ seen.add(k); q.push([nx,ny]); }
+      }
+    }
+  }
+  return {color, stones, libs};
+}
+function goRemoveGroup(b, stones){
+  for(const [x,y] of stones) b[y][x]='.';
+}
+function goTryPlace(x,y){
+  const n=gBoard.length;
+  if(gOver) return {ok:false, msg:'Game over'};
+  if(gBoard[y][x]!=='.') return {ok:false, msg:'Ô đã có đá'};
+
+  const me=gTurn;
+  const opp=(me==='B')?'W':'B';
+
+  const nb=goClone(gBoard);
+  nb[y][x]=me;
+
+  // capture opponent groups with 0 libs
+  let captured=0;
+  for(const [nx,ny] of goNeighbors(n,x,y)){
+    if(nb[ny][nx]!==opp) continue;
+    const g=goGroup(nb,nx,ny);
+    if(g.libs===0){
+      captured += g.stones.length;
+      goRemoveGroup(nb,g.stones);
+    }
+  }
+
+  // suicide check
+  const myG=goGroup(nb,x,y);
+  if(myG.libs===0 && captured===0) return {ok:false, msg:'Cấm tự sát'};
+
+  // simple ko: disallow if repeats position from 2 plies ago
+  const h=goHash(nb);
+  if(gPrevPrevHash && h===gPrevPrevHash) return {ok:false, msg:'Ko (lặp lại thế cờ)'};
+
+  // success
+  return {ok:true, nb, captured, hash:h};
+}
+function resetGo(){
+  const n=GO.size;
+  gBoard=goNewBoard(n);
+  gTurn='B'; // Black first
+  gCursor={x:Math.floor(n/2), y:Math.floor(n/2)};
+  gHist=[];
+  gOver=false;
+  gPassStreak=0;
+  gCapB=0; gCapW=0;
+  gPrevHash=goHash(gBoard);
+  gPrevPrevHash=null;
+  statusGo.textContent = `Go ${n}x${n}: Đen đi trước. (Bắt: Đen ${gCapB} / Trắng ${gCapW})`;
+  cvGo.setAttribute('tabindex','0'); cvGo.focus();
+  renderGo();
+}
+function goCommitPlace(x,y){
+  const res=goTryPlace(x,y);
+  if(!res.ok){
+    statusGo.textContent = `Không hợp lệ: ${res.msg} — Lượt ${(gTurn==='B')?'Đen':'Trắng'}.`;
+    return;
+  }
+  gHist.push({
+    board: goClone(gBoard), turn:gTurn, cursor:{...gCursor},
+    pass:gPassStreak, capB:gCapB, capW:gCapW, prev:gPrevHash, prevprev:gPrevPrevHash, over:gOver
+  });
+
+  gBoard=res.nb;
+  if(gTurn==='B') gCapB+=res.captured; else gCapW+=res.captured;
+
+  gPassStreak=0;
+  gPrevPrevHash=gPrevHash;
+  gPrevHash=res.hash;
+
+  gTurn = (gTurn==='B')?'W':'B';
+  statusGo.textContent = `Lượt ${(gTurn==='B')?'Đen':'Trắng'}. (Bắt: Đen ${gCapB} / Trắng ${gCapW})`;
+  renderGo();
+}
+function goPass(){
+  if(gOver) return;
+  gHist.push({
+    board: goClone(gBoard), turn:gTurn, cursor:{...gCursor},
+    pass:gPassStreak, capB:gCapB, capW:gCapW, prev:gPrevHash, prevprev:gPrevPrevHash, over:gOver
+  });
+  gPassStreak++;
+  if(gPassStreak>=2){
+    gOver=true;
+    statusGo.textContent = `2 lần pass liên tiếp → kết thúc ván. (1 New / 2 Undo)`;
+  } else {
+    gTurn=(gTurn==='B')?'W':'B';
+    statusGo.textContent = `Pass. Lượt ${(gTurn==='B')?'Đen':'Trắng'}.`;
+  }
+}
+function goUndo(){
+  const last=gHist.pop();
+  if(!last) return;
+  gBoard=last.board; gTurn=last.turn; gCursor=last.cursor;
+  gPassStreak=last.pass; gCapB=last.capB; gCapW=last.capW;
+  gPrevHash=last.prev; gPrevPrevHash=last.prevprev; gOver=last.over;
+  statusGo.textContent = `Undo. Lượt ${(gTurn==='B')?'Đen':'Trắng'}. (Bắt: Đen ${gCapB} / Trắng ${gCapW})`;
+  renderGo();
+}
+function renderGo(){
+  const n=gBoard.length;
+  const W=cvGo.width, H=cvGo.height;
+  ctxGo.clearRect(0,0,W,H);
+
+  const cell=Math.floor(Math.min(W,H)/(n+1));
+  const offX=Math.floor((W - cell*(n-1))/2);
+  const offY=Math.floor((H - cell*(n-1))/2);
+
+  // grid lines
+  ctxGo.strokeStyle='#111';
+  ctxGo.lineWidth=1;
+  for(let i=0;i<n;i++){
+    // horizontal
+    ctxGo.beginPath();
+    ctxGo.moveTo(offX, offY+i*cell);
+    ctxGo.lineTo(offX+(n-1)*cell, offY+i*cell);
+    ctxGo.stroke();
+    // vertical
+    ctxGo.beginPath();
+    ctxGo.moveTo(offX+i*cell, offY);
+    ctxGo.lineTo(offX+i*cell, offY+(n-1)*cell);
+    ctxGo.stroke();
+  }
+
+  // stones
+  for(let y=0;y<n;y++) for(let x=0;x<n;x++){
+    const v=gBoard[y][x];
+    if(v==='.') continue;
+    const cx=offX+x*cell;
+    const cy=offY+y*cell;
+    ctxGo.beginPath();
+    ctxGo.arc(cx,cy,cell*0.38,0,Math.PI*2);
+    ctxGo.fillStyle = (v==='B') ? '#111' : '#fff';
+    ctxGo.fill();
+    ctxGo.strokeStyle='#111';
+    ctxGo.lineWidth=1.5;
+    ctxGo.stroke();
+  }
+
+  // cursor box
+  const cx=offX+gCursor.x*cell;
+  const cy=offY+gCursor.y*cell;
+  ctxGo.strokeStyle='#000';
+  ctxGo.lineWidth=3;
+  ctxGo.strokeRect(cx-cell*0.5, cy-cell*0.5, cell, cell);
+}
+cvGo.addEventListener('keydown',(e)=>{
+  const n=gBoard.length;
+  if(e.key==='ArrowLeft'){ e.preventDefault(); gCursor.x=(gCursor.x+n-1)%n; renderGo(); }
+  if(e.key==='ArrowRight'){ e.preventDefault(); gCursor.x=(gCursor.x+1)%n; renderGo(); }
+  if(e.key==='ArrowUp'){ e.preventDefault(); gCursor.y=(gCursor.y+n-1)%n; renderGo(); }
+  if(e.key==='ArrowDown'){ e.preventDefault(); gCursor.y=(gCursor.y+1)%n; renderGo(); }
+  if(e.key==='Enter'){ e.preventDefault(); goCommitPlace(gCursor.x,gCursor.y); }
+  if(e.key==='5'){ e.preventDefault(); goPass(); }
+  if(e.key==='1'){ e.preventDefault(); resetGo(); }
+  if(e.key==='2'){ e.preventDefault(); goUndo(); }
+});
+
+/* =========================
+   Start
+========================= */
 show('menu');
 </script>
 </body>
