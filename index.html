@@ -15,9 +15,9 @@
     }
     .item:focus { outline: 3px solid #000; }
     .hint { font-size:12px; opacity:.85; margin-top:8px; line-height:1.45; }
+    .tiny { font-size: 11px; opacity: .8; }
     canvas { border:1px solid #444; border-radius:12px; width: 100%; height: auto; }
     :focus { outline: 3px solid #000; }
-    .tiny { font-size: 11px; opacity: .8; }
   </style>
 </head>
 <body>
@@ -29,11 +29,13 @@
   <a class="item" href="#" data-go="chess">3) Cờ vua (2P)</a>
   <a class="item" href="#" data-go="xiangqi">4) Cờ tướng (2P)</a>
   <a class="item" href="#" data-go="goMode">5) Cờ vây (2P)</a>
+  <a class="item" href="#" data-go="snakeMode">6) Rắn săn mồi (Snake)</a>
+
   <div class="hint">
     D-pad: di chuyển • OK: chọn/đi • 1: New • 2: Undo • 3: Flip (nếu có) • 0: Menu •
     Esc/Backspace: Menu
   </div>
-  <div class="tiny">Tip: nếu widget bị cache, mở link thêm ?v=2,3...</div>
+  <div class="tiny">Nếu bị cache: mở link thêm ?v=2,3... (vd: ...github.io/.../?v=99)</div>
 </div>
 
 <!-- X/O MODE -->
@@ -105,6 +107,26 @@
   <div class="hint">OK: đặt đá • 5: Pass • 1: New • 2: Undo • 0: Menu</div>
 </div>
 
+<!-- SNAKE MODE -->
+<div id="snakeMode" class="screen">
+  <div class="hint"><b>Rắn săn mồi</b> — chọn chế độ:</div>
+  <a class="item" href="#" data-snake="15,170,1">15x15 • Chậm • Có tường</a>
+  <a class="item" href="#" data-snake="20,130,1">20x20 • Vừa • Có tường</a>
+  <a class="item" href="#" data-snake="25,110,1">25x25 • Nhanh • Có tường</a>
+  <a class="item" href="#" data-snake="20,130,0">20x20 • Vừa • Xuyên tường</a>
+  <a class="item" href="#" data-go="menu">0) Menu</a>
+  <div class="tiny">OK: bắt đầu • 5: Pause • 2: đổi tốc • 3: Wall/Wrap</div>
+</div>
+
+<!-- SNAKE GAME -->
+<div id="snake" class="screen">
+  <canvas id="cvSnake" width="320" height="320"></canvas>
+  <div class="hint" id="statusSnake"></div>
+  <div class="hint">
+    D-pad: đổi hướng • OK: start/restart • 5: Pause • 1: New • 2: Speed • 3: Wall/Wrap • 0: Menu
+  </div>
+</div>
+
 <script>
 /* =========================
    ROUTER + SOFTKEY
@@ -119,6 +141,8 @@ const screens = {
   xiangqi: document.getElementById('xiangqi'),
   goMode: document.getElementById('goMode'),
   go: document.getElementById('go'),
+  snakeMode: document.getElementById('snakeMode'),
+  snake: document.getElementById('snake'),
 };
 
 function focusFirst(root) {
@@ -128,25 +152,28 @@ function focusFirst(root) {
 
 let currentScreen = 'menu';
 function show(name) {
+  // stop snake timer when leaving snake
+  if (currentScreen === 'snake' && name !== 'snake') snakeStop();
+
   Object.values(screens).forEach(s => s.classList.remove('active'));
   screens[name].classList.add('active');
   currentScreen = name;
   focusFirst(screens[name]);
+
   if (name === 'xo') resetXO();
   if (name === 'caro') resetCaro();
   if (name === 'chess') resetChess();
   if (name === 'xiangqi') resetXQ();
   if (name === 'go') resetGo();
+  if (name === 'snake') resetSnake();
 }
 
 document.querySelectorAll('.item').forEach(el => el.setAttribute('tabindex','0'));
 
 document.addEventListener('keydown', (e) => {
-  // LSK / RSK on many firmwares
   if (e.key === 'Escape' || e.key === 'Backspace') {
     if (currentScreen !== 'menu') { e.preventDefault(); show('menu'); }
   }
-  // hard menu key
   if (e.key === '0' && currentScreen !== 'menu') { e.preventDefault(); show('menu'); }
 });
 
@@ -155,17 +182,41 @@ document.body.addEventListener('click', (e) => {
   if (go) { e.preventDefault(); show(go.dataset.go); return; }
 
   const xo = e.target.closest('[data-xo]');
-  if (xo) { e.preventDefault(); XO.size = parseInt(xo.dataset.xo,10); XO.win = (XO.size<=4?XO.size:5); show('xo'); return; }
+  if (xo) {
+    e.preventDefault();
+    XO.size = parseInt(xo.dataset.xo,10);
+    XO.win = (XO.size<=4?XO.size:5);
+    show('xo');
+    return;
+  }
 
   const caro = e.target.closest('[data-caro]');
   if (caro) {
     e.preventDefault();
     const [n,k] = caro.dataset.caro.split(',').map(x=>parseInt(x,10));
-    CARO.size=n; CARO.win=k; show('caro'); return;
+    CARO.size=n; CARO.win=k;
+    show('caro');
+    return;
   }
 
   const gs = e.target.closest('[data-goSize]');
-  if (gs) { e.preventDefault(); GO.size=parseInt(gs.dataset.goSize,10); show('go'); return; }
+  if (gs) {
+    e.preventDefault();
+    GO.size=parseInt(gs.dataset.goSize,10);
+    show('go');
+    return;
+  }
+
+  const sm = e.target.closest('[data-snake]');
+  if (sm) {
+    e.preventDefault();
+    const [n, ms, w] = sm.dataset.snake.split(',').map(x => x.trim());
+    SNAKE.size = parseInt(n,10);
+    SNAKE.speedMs = parseInt(ms,10);
+    SNAKE.walls = (w === '1');
+    show('snake');
+    return;
+  }
 });
 
 document.body.addEventListener('keydown', (e) => {
@@ -278,7 +329,6 @@ function renderXO(){
     drawCenteredText(ctxXO, v, offX+x*cell+cell/2, offY+y*cell+cell/2, fs, true);
   }
 
-  // cursor
   ctxXO.lineWidth=4;
   ctxXO.strokeStyle='#000';
   ctxXO.strokeRect(offX+xoCursor.x*cell+2, offY+xoCursor.y*cell+2, cell-4, cell-4);
@@ -380,8 +430,6 @@ cvCaro.addEventListener('keydown',(e)=>{
 
 /* =========================
    CHESS (2P local, no libs)
-   - ăn quân, chiếu, chiếu bí/hòa (đơn giản theo: hết nước)
-   - nhập thành, bắt tốt qua đường, phong cấp
 ========================= */
 const cvChess = document.getElementById('cvChess');
 const ctxChess = cvChess.getContext('2d');
@@ -426,19 +474,6 @@ function chessInit(){
 }
 let CS, cCursor, cSelected, cLegal, cFlip, cPromo, cHist;
 
-function resetChess(){
-  CS = chessInit();
-  cCursor = {x:4,y:6};
-  cSelected = null;
-  cLegal = new Set();
-  cFlip = false;
-  cPromo = null;
-  cHist = [];
-  statusChess.textContent = 'Cờ vua 2P: Trắng đi trước. OK chọn quân.';
-  cvChess.setAttribute('tabindex','0'); cvChess.focus();
-  renderChess();
-}
-
 function cViewToBoard(x,y){ return cFlip ? {x:7-x,y:7-y} : {x,y}; }
 function cBoardToView(x,y){ return cFlip ? {x:7-x,y:7-y} : {x,y}; }
 function findKing8(s,color){
@@ -449,20 +484,17 @@ function findKing8(s,color){
 function attacked8(s, attacker, tx,ty){
   const b=s.board;
   const dir = (attacker==='w')?-1:1;
-  // pawn
   const pawn = (attacker==='w')?'P':'p';
   for(const dx of [-1,1]){
     const x=tx-dx, y=ty-dir;
     if(inBounds8(x,y) && b[y][x]===pawn) return true;
   }
-  // knight
   const kn = (attacker==='w')?'N':'n';
   const KOFF=[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
   for(const [dx,dy] of KOFF){
     const x=tx-dx, y=ty-dy;
     if(inBounds8(x,y) && b[y][x]===kn) return true;
   }
-  // king
   const kg=(attacker==='w')?'K':'k';
   for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
     if(!dx&&!dy) continue;
@@ -473,9 +505,7 @@ function attacked8(s, attacker, tx,ty){
     let x=tx-dx, y=ty-dy;
     while(inBounds8(x,y)){
       const p=b[y][x];
-      if(p){
-        return pieces.includes(p);
-      }
+      if(p) return pieces.includes(p);
       x-=dx; y-=dy;
     }
     return false;
@@ -541,7 +571,6 @@ function chessPseudo(s,x,y){
         else cPush(out,x,y,tx,ty,{});
       }
     }
-    // en passant
     if(s.ep){
       if(s.ep.y===y+dir && Math.abs(s.ep.x-x)===1){
         cPush(out,x,y,s.ep.x,s.ep.y,{ep:true});
@@ -561,7 +590,6 @@ function chessPseudo(s,x,y){
       if(!dx&&!dy) continue;
       add(x+dx,y+dy,{});
     }
-    // castling
     if(me==='w' && x===4 && y===7){
       if(s.castle.K && !b[7][5] && !b[7][6]){
         if(!inCheck8(s,'w') && !attacked8(s,'b',5,7) && !attacked8(s,'b',6,7)) cPush(out,4,7,6,7,{castle:'K'});
@@ -587,19 +615,16 @@ function chessApply(s, mv, promoPiece){
   const b=ns.board;
   const p=b[mv.fy][mv.fx];
   const me=col(p);
-  const opp=(me==='w')?'b':'w';
   ns.ep=null;
 
   const captured = b[mv.ty][mv.tx];
 
-  // castling
   if(mv.castle){
     if(mv.castle==='K'){ b[7][4]=null; b[7][6]='K'; b[7][7]=null; b[7][5]='R'; ns.castle.K=false; ns.castle.Q=false; }
     if(mv.castle==='Q'){ b[7][4]=null; b[7][2]='K'; b[7][0]=null; b[7][3]='R'; ns.castle.K=false; ns.castle.Q=false; }
     if(mv.castle==='k'){ b[0][4]=null; b[0][6]='k'; b[0][7]=null; b[0][5]='r'; ns.castle.k=false; ns.castle.q=false; }
     if(mv.castle==='q'){ b[0][4]=null; b[0][2]='k'; b[0][0]=null; b[0][3]='r'; ns.castle.k=false; ns.castle.q=false; }
   } else {
-    // en passant
     if(mv.ep){
       b[mv.fy][mv.fx]=null;
       b[mv.ty][mv.tx]=p;
@@ -618,7 +643,6 @@ function chessApply(s, mv, promoPiece){
       ns.ep={x:mv.tx,y:epy};
     }
 
-    // castle rights updates
     if(p==='K'){ ns.castle.K=false; ns.castle.Q=false; }
     if(p==='k'){ ns.castle.k=false; ns.castle.q=false; }
     if(p==='R' && mv.fy===7 && mv.fx===0) ns.castle.Q=false;
@@ -626,7 +650,6 @@ function chessApply(s, mv, promoPiece){
     if(p==='r' && mv.fy===0 && mv.fx===0) ns.castle.q=false;
     if(p==='r' && mv.fy===0 && mv.fx===7) ns.castle.k=false;
 
-    // rook captured affects
     if(captured==='R' && mv.ty===7 && mv.tx===0) ns.castle.Q=false;
     if(captured==='R' && mv.ty===7 && mv.tx===7) ns.castle.K=false;
     if(captured==='r' && mv.ty===0 && mv.tx===0) ns.castle.q=false;
@@ -667,6 +690,19 @@ function chessStatus(s){
   return `Lượt: ${turnTxt}${chk?' (đang bị chiếu)':''}. OK chọn quân.`;
 }
 
+function resetChess(){
+  CS=chessInit();
+  cCursor={x:4,y:6};
+  cSelected=null;
+  cLegal=new Set();
+  cFlip=false;
+  cPromo=null;
+  cHist=[];
+  statusChess.textContent=chessStatus(CS);
+  cvChess.setAttribute('tabindex','0'); cvChess.focus();
+  renderChess();
+}
+
 function chessSelect(xv,yv){
   const b=cViewToBoard(xv,yv);
   const p=CS.board[b.y][b.x];
@@ -679,7 +715,6 @@ function chessTryMove(xv,yv){
   if(cPromo) return;
   const to=cViewToBoard(xv,yv);
   if(!cSelected){ chessSelect(xv,yv); renderChess(); return; }
-  // click own piece -> change selection
   const p=CS.board[to.y][to.x];
   if(p && col(p)===CS.turn){ chessSelect(xv,yv); renderChess(); return; }
   const ms=chessLegalFrom(CS,cSelected.x,cSelected.y);
@@ -726,14 +761,12 @@ function renderChess(){
   const offX=Math.floor((W-cell*8)/2);
   const offY=Math.floor((H-cell*8)/2);
 
-  // squares
   for(let vy=0;vy<8;vy++) for(let vx=0;vx<8;vx++){
     const dark=((vx+vy)&1)===1;
     ctxChess.fillStyle = dark ? '#b58863' : '#f0d9b5';
     ctxChess.fillRect(offX+vx*cell, offY+vy*cell, cell, cell);
   }
 
-  // legal dots
   if(cSelected){
     for(let by=0;by<8;by++) for(let bx=0;bx<8;bx++){
       if(!cLegal.has(bx+','+by)) continue;
@@ -745,7 +778,6 @@ function renderChess(){
     }
   }
 
-  // selected outline
   if(cSelected){
     const v=cBoardToView(cSelected.x,cSelected.y);
     ctxChess.strokeStyle='#2b6cb0';
@@ -753,12 +785,10 @@ function renderChess(){
     ctxChess.strokeRect(offX+v.x*cell+3, offY+v.y*cell+3, cell-6, cell-6);
   }
 
-  // cursor outline
   ctxChess.strokeStyle='#111';
   ctxChess.lineWidth=5;
   ctxChess.strokeRect(offX+cCursor.x*cell+2, offY+cCursor.y*cell+2, cell-4, cell-4);
 
-  // pieces
   ctxChess.fillStyle='#111';
   const fs=Math.floor(cell*0.72);
   ctxChess.font='bold '+fs+'px sans-serif';
@@ -794,28 +824,13 @@ cvChess.addEventListener('keydown',(e)=>{
   if(e.key==='ArrowUp'){ e.preventDefault(); cCursor.y=(cCursor.y+7)%8; renderChess(); }
   if(e.key==='ArrowDown'){ e.preventDefault(); cCursor.y=(cCursor.y+1)%8; renderChess(); }
   if(e.key==='Enter'){ e.preventDefault(); chessTryMove(cCursor.x,cCursor.y); }
-  if(e.key==='1'){ e.preventDefault(); resetChess(); statusChess.textContent=chessStatus(CS); renderChess(); }
+  if(e.key==='1'){ e.preventDefault(); resetChess(); }
   if(e.key==='2'){ e.preventDefault(); chessUndo(); }
   if(e.key==='3'){ e.preventDefault(); cFlip=!cFlip; renderChess(); }
 });
 
-function resetChess(){
-  CS=chessInit();
-  cCursor={x:4,y:6};
-  cSelected=null;
-  cLegal=new Set();
-  cFlip=false;
-  cPromo=null;
-  cHist=[];
-  statusChess.textContent=chessStatus(CS);
-  cvChess.setAttribute('tabindex','0'); cvChess.focus();
-  renderChess();
-}
-
 /* =========================
    XIANGQI (Cờ tướng) 2P
-   - đúng luật di chuyển, pháo, mã tắc, tượng/ sĩ cung, tốt qua sông, tướng đối mặt
-   - kiểm tra chiếu/chiếu bí (hết nước)
 ========================= */
 const cvXQ = document.getElementById('cvXQ');
 const ctxXQ = cvXQ.getContext('2d');
@@ -836,39 +851,24 @@ function xqInit(){
       [E,E,E,E,E,E,E,E,E],
       ['R','H','E','A','K','A','E','H','R'],
     ],
-    turn: 'r', // red first
+    turn: 'r',
     flip: false
   };
 }
 let XQ, xqCursor, xqSelected, xqLegal, xqHist;
 
-function xqClone(s){
-  return { board: s.board.map(r=>r.slice()), turn: s.turn, flip: s.flip };
-}
-function xqColor(p){
-  if(!p) return null;
-  return (p===p.toUpperCase())?'r':'b'; // uppercase = red
-}
+function xqClone(s){ return { board: s.board.map(r=>r.slice()), turn: s.turn, flip: s.flip }; }
+function xqColor(p){ if(!p) return null; return (p===p.toUpperCase())?'r':'b'; }
 function xqOpp(c){ return c==='r'?'b':'r'; }
 function xqInBounds(x,y){ return x>=0&&x<9&&y>=0&&y<10; }
-function xqViewToBoard(x,y){
-  if(!XQ.flip) return {x,y};
-  return {x:8-x, y:9-y};
-}
-function xqBoardToView(x,y){
-  if(!XQ.flip) return {x,y};
-  return {x:8-x, y:9-y};
-}
+function xqViewToBoard(x,y){ return XQ.flip ? {x:8-x, y:9-y} : {x,y}; }
+function xqBoardToView(x,y){ return XQ.flip ? {x:8-x, y:9-y} : {x,y}; }
 function xqPalaceOK(color, x,y){
-  // red palace: x 3..5, y 7..9 ; black palace: x 3..5, y 0..2
   if(x<3||x>5) return false;
   if(color==='r') return y>=7 && y<=9;
   return y>=0 && y<=2;
 }
-function xqRiverCrossed(color, y){
-  // red crosses when y <=4 ; black crosses when y >=5
-  return (color==='r') ? (y<=4) : (y>=5);
-}
+function xqRiverCrossed(color, y){ return (color==='r') ? (y<=4) : (y>=5); }
 function xqFindGeneral(s,color){
   const g = (color==='r')?'K':'k';
   for(let y=0;y<10;y++) for(let x=0;x<9;x++) if(s.board[y][x]===g) return {x,y};
@@ -877,78 +877,61 @@ function xqFindGeneral(s,color){
 function xqGeneralsFacing(s){
   const rg=xqFindGeneral(s,'r');
   const bg=xqFindGeneral(s,'b');
-  if(!rg || !bg) return false;
+  if(!rg||!bg) return false;
   if(rg.x!==bg.x) return false;
   const x=rg.x;
   const y1=Math.min(rg.y,bg.y), y2=Math.max(rg.y,bg.y);
-  for(let y=y1+1;y<y2;y++){
-    if(s.board[y][x]) return false;
-  }
+  for(let y=y1+1;y<y2;y++) if(s.board[y][x]) return false;
   return true;
 }
 
 function xqAttackedBy(s, attacker, tx,ty){
   const b=s.board;
-
-  // general "flying" line
   if(xqGeneralsFacing(s)){
     const rg=xqFindGeneral(s,'r');
     const bg=xqFindGeneral(s,'b');
     if(attacker==='r' && bg.x===tx && bg.y===ty) return true;
     if(attacker==='b' && rg.x===tx && rg.y===ty) return true;
   }
-
-  // pawn attacks (same as moves)
   for(let y=0;y<10;y++) for(let x=0;x<9;x++){
     const p=b[y][x];
     if(!p) continue;
     if(xqColor(p)!==attacker) continue;
-
     const low=p.toLowerCase();
+
     if(low==='p'){
       const dir = (attacker==='r') ? -1 : 1;
-      // forward
       if(x===tx && y+dir===ty) return true;
-      // sideways after crossed
       if(xqRiverCrossed(attacker,y)){
         if(y===ty && Math.abs(x-tx)===1) return true;
       }
-    }
-    else if(low==='r'){ // chariot rook-line
+    } else if(low==='r'){
       if(x===tx){
-        const step = (y<ty)?1:-1;
+        const step=(y<ty)?1:-1;
         let yy=y+step;
         while(yy!==ty && !b[yy][x]) yy+=step;
         if(yy===ty) return true;
       }
       if(y===ty){
-        const step = (x<tx)?1:-1;
+        const step=(x<tx)?1:-1;
         let xx=x+step;
         while(xx!==tx && !b[y][xx]) xx+=step;
         if(xx===tx) return true;
       }
-    }
-    else if(low==='c'){ // cannon: exactly one screen
+    } else if(low==='c'){
       if(x===tx){
         const step=(y<ty)?1:-1;
         let yy=y+step, screens=0;
-        while(yy!==ty){
-          if(b[yy][x]) screens++;
-          yy+=step;
-        }
+        while(yy!==ty){ if(b[yy][x]) screens++; yy+=step; }
         if(screens===1) return true;
       }
       if(y===ty){
         const step=(x<tx)?1:-1;
         let xx=x+step, screens=0;
-        while(xx!==tx){
-          if(b[y][xx]) screens++;
-          xx+=step;
-        }
+        while(xx!==tx){ if(b[y][xx]) screens++; xx+=step; }
         if(screens===1) return true;
       }
-    }
-    else if(low==='h'){ // horse with leg block
+    } else if(low==='h'){
       const moves = [
         {dx:2,dy:1, lx:1,ly:0},{dx:2,dy:-1,lx:1,ly:0},
         {dx:-2,dy:1,lx:-1,ly:0},{dx:-2,dy:-1,lx:-1,ly:0},
@@ -960,8 +943,7 @@ function xqAttackedBy(s, attacker, tx,ty){
           if(!b[y+m.ly][x+m.lx]) return true;
         }
       }
-    }
-    else if(low==='e'){ // elephant
+    } else if(low==='e'){
       const steps=[
         {dx:2,dy:2, bx:1,by:1},{dx:2,dy:-2,bx:1,by:-1},
         {dx:-2,dy:2,bx:-1,by:1},{dx:-2,dy:-2,bx:-1,by:-1},
@@ -969,20 +951,17 @@ function xqAttackedBy(s, attacker, tx,ty){
       for(const st of steps){
         if(x+st.dx===tx && y+st.dy===ty){
           if(b[y+st.by][x+st.bx]) continue;
-          // river rule
           if(attacker==='r' && (y+st.dy)<5) continue;
           if(attacker==='b' && (y+st.dy)>4) continue;
           return true;
         }
       }
-    }
-    else if(low==='a'){ // advisor
+    } else if(low==='a'){
       const ds=[[1,1],[1,-1],[-1,1],[-1,-1]];
       for(const [dx,dy] of ds){
         if(x+dx===tx && y+dy===ty && xqPalaceOK(attacker, tx,ty)) return true;
       }
-    }
-    else if(low==='k'){ // general adjacent within palace
+    } else if(low==='k'){
       const ds=[[1,0],[-1,0],[0,1],[0,-1]];
       for(const [dx,dy] of ds){
         if(x+dx===tx && y+dy===ty && xqPalaceOK(attacker, tx,ty)) return true;
@@ -993,12 +972,10 @@ function xqAttackedBy(s, attacker, tx,ty){
 }
 
 function xqInCheck(s,color){
+  if(xqGeneralsFacing(s)) return true;
   const g=xqFindGeneral(s,color);
   if(!g) return false;
-  const opp=xqOpp(color);
-  // also invalid if generals facing
-  if(xqGeneralsFacing(s)) return true;
-  return xqAttackedBy(s,opp,g.x,g.y);
+  return xqAttackedBy(s,xqOpp(color),g.x,g.y);
 }
 
 function xqPseudoMoves(s,x,y){
@@ -1011,14 +988,14 @@ function xqPseudoMoves(s,x,y){
   const out=[];
   const low=p.toLowerCase();
 
-  const push=(tx,ty,extra={})=>{
+  const push=(tx,ty)=>{
     if(!xqInBounds(tx,ty)) return;
     const t=b[ty][tx];
-    if(!t) out.push({fx:x,fy:y,tx,ty,...extra});
-    else if(xqColor(t)===opp) out.push({fx:x,fy:y,tx,ty,...extra});
+    if(!t) out.push({fx:x,fy:y,tx,ty});
+    else if(xqColor(t)===opp) out.push({fx:x,fy:y,tx,ty});
   };
 
-  if(low==='r'){ // chariot
+  if(low==='r'){
     const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
     for(const [dx,dy] of dirs){
       let tx=x+dx, ty=y+dy;
@@ -1029,17 +1006,14 @@ function xqPseudoMoves(s,x,y){
         tx+=dx; ty+=dy;
       }
     }
-  }
-  else if(low==='c'){ // cannon
+  } else if(low==='c'){
     const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
     for(const [dx,dy] of dirs){
       let tx=x+dx, ty=y+dy;
-      // non-capture until hit first piece
       while(xqInBounds(tx,ty) && !b[ty][tx]){
         out.push({fx:x,fy:y,tx,ty});
         tx+=dx; ty+=dy;
       }
-      // now must have exactly one screen then capture
       tx+=dx; ty+=dy;
       while(xqInBounds(tx,ty)){
         const t=b[ty][tx];
@@ -1050,8 +1024,7 @@ function xqPseudoMoves(s,x,y){
         tx+=dx; ty+=dy;
       }
     }
-  }
-  else if(low==='h'){ // horse with leg
+  } else if(low==='h'){
     const moves = [
       {dx:2,dy:1, lx:1,ly:0},{dx:2,dy:-1,lx:1,ly:0},
       {dx:-2,dy:1,lx:-1,ly:0},{dx:-2,dy:-1,lx:-1,ly:0},
@@ -1063,8 +1036,7 @@ function xqPseudoMoves(s,x,y){
       if(!xqInBounds(lx,ly) || b[ly][lx]) continue;
       push(x+m.dx,y+m.dy);
     }
-  }
-  else if(low==='e'){ // elephant
+  } else if(low==='e'){
     const steps=[
       {dx:2,dy:2, bx:1,by:1},{dx:2,dy:-2,bx:1,by:-1},
       {dx:-2,dy:2,bx:-1,by:1},{dx:-2,dy:-2,bx:-1,by:-1},
@@ -1073,27 +1045,23 @@ function xqPseudoMoves(s,x,y){
       const mx=x+st.bx, my=y+st.by;
       const tx=x+st.dx, ty=y+st.dy;
       if(!xqInBounds(tx,ty)) continue;
-      if(b[my][mx]) continue; // blocked eye
-      // river rule
+      if(b[my][mx]) continue;
       if(me==='r' && ty<5) continue;
       if(me==='b' && ty>4) continue;
       push(tx,ty);
     }
-  }
-  else if(low==='a'){ // advisor
+  } else if(low==='a'){
     const ds=[[1,1],[1,-1],[-1,1],[-1,-1]];
     for(const [dx,dy] of ds){
       const tx=x+dx, ty=y+dy;
       if(xqPalaceOK(me,tx,ty)) push(tx,ty);
     }
-  }
-  else if(low==='k'){ // general
+  } else if(low==='k'){
     const ds=[[1,0],[-1,0],[0,1],[0,-1]];
     for(const [dx,dy] of ds){
       const tx=x+dx, ty=y+dy;
       if(xqPalaceOK(me,tx,ty)) push(tx,ty);
     }
-    // flying general capture if line clear
     const og=xqFindGeneral(s,opp);
     if(og && og.x===x){
       const y1=Math.min(y,og.y), y2=Math.max(y,og.y);
@@ -1101,8 +1069,7 @@ function xqPseudoMoves(s,x,y){
       for(let yy=y1+1;yy<y2;yy++) if(b[yy][x]) { clear=false; break; }
       if(clear) out.push({fx:x,fy:y,tx:og.x,ty:og.y});
     }
-  }
-  else if(low==='p'){ // pawn
+  } else if(low==='p'){
     const dir = (me==='r')?-1:1;
     push(x,y+dir);
     if(xqRiverCrossed(me,y)){
@@ -1128,8 +1095,7 @@ function xqLegalFrom(s,x,y){
   const out=[];
   for(const mv of ms){
     const test=xqApply(s,mv);
-    const myColor = xqOpp(test.turn); // moved side
-    // illegal if generals face OR own general in check
+    const myColor = xqOpp(test.turn);
     if(xqGeneralsFacing(test)) continue;
     if(xqInCheck(test,myColor)) continue;
     out.push(mv);
@@ -1157,7 +1123,7 @@ function xqStatus(s){
 
 function resetXQ(){
   XQ=xqInit();
-  xqCursor={x:4,y:8}; // gần tướng đỏ
+  xqCursor={x:4,y:8};
   xqSelected=null;
   xqLegal=new Set();
   xqHist=[];
@@ -1208,7 +1174,6 @@ function renderXQ(){
   const offX=Math.floor((W-cell*cols)/2);
   const offY=Math.floor((H-cell*rows)/2);
 
-  // grid
   ctxXQ.strokeStyle='#111';
   ctxXQ.lineWidth=1;
   for(let y=0;y<rows;y++){
@@ -1224,13 +1189,11 @@ function renderXQ(){
     ctxXQ.stroke();
   }
 
-  // river text
   ctxXQ.fillStyle='rgba(0,0,0,0.35)';
   ctxXQ.font='bold 14px sans-serif';
   ctxXQ.textAlign='center';
   ctxXQ.fillText('SÔNG', offX+4*cell, offY+4.5*cell);
 
-  // legal dots
   if(xqSelected){
     for(let by=0;by<rows;by++) for(let bx=0;bx<cols;bx++){
       if(!xqLegal.has(bx+','+by)) continue;
@@ -1244,7 +1207,6 @@ function renderXQ(){
     }
   }
 
-  // selected outline
   if(xqSelected){
     const v=xqBoardToView(xqSelected.x,xqSelected.y);
     ctxXQ.strokeStyle='#2b6cb0';
@@ -1252,12 +1214,10 @@ function renderXQ(){
     ctxXQ.strokeRect(offX+v.x*cell-cell/2+2, offY+v.y*cell-cell/2+2, cell-4, cell-4);
   }
 
-  // cursor outline (view coords are intersections; we draw square around it)
   ctxXQ.strokeStyle='#111';
   ctxXQ.lineWidth=4;
   ctxXQ.strokeRect(offX+xqCursor.x*cell-cell/2+2, offY+xqCursor.y*cell-cell/2+2, cell-4, cell-4);
 
-  // pieces as circles + text
   const pieceLabel = (p)=>{
     const low=p.toLowerCase();
     if(low==='k') return '将';
@@ -1307,8 +1267,6 @@ cvXQ.addEventListener('keydown',(e)=>{
 
 /* =========================
    GO (2P local)
-   - capture, suicide forbidden, simple ko (immediate repetition)
-   - pass: key '5'
 ========================= */
 const cvGo = document.getElementById('cvGo');
 const ctxGo = cvGo.getContext('2d');
@@ -1328,9 +1286,7 @@ function goNeighbors(n,x,y){
   if(goIn(n,x,y+1)) out.push([x,y+1]);
   return out;
 }
-function goHash(b){
-  return b.map(r=>r.join('')).join('|');
-}
+function goHash(b){ return b.map(r=>r.join('')).join('|'); }
 function goGroup(b, x,y){
   const n=b.length;
   const color=b[y][x];
@@ -1352,9 +1308,8 @@ function goGroup(b, x,y){
   }
   return {color, stones, libs};
 }
-function goRemoveGroup(b, stones){
-  for(const [x,y] of stones) b[y][x]='.';
-}
+function goRemoveGroup(b, stones){ for(const [x,y] of stones) b[y][x]='.'; }
+
 function goTryPlace(x,y){
   const n=gBoard.length;
   if(gOver) return {ok:false, msg:'Game over'};
@@ -1366,7 +1321,6 @@ function goTryPlace(x,y){
   const nb=goClone(gBoard);
   nb[y][x]=me;
 
-  // capture opponent groups with 0 libs
   let captured=0;
   for(const [nx,ny] of goNeighbors(n,x,y)){
     if(nb[ny][nx]!==opp) continue;
@@ -1377,21 +1331,19 @@ function goTryPlace(x,y){
     }
   }
 
-  // suicide check
   const myG=goGroup(nb,x,y);
   if(myG.libs===0 && captured===0) return {ok:false, msg:'Cấm tự sát'};
 
-  // simple ko: disallow if repeats position from 2 plies ago
   const h=goHash(nb);
   if(gPrevPrevHash && h===gPrevPrevHash) return {ok:false, msg:'Ko (lặp lại thế cờ)'};
 
-  // success
   return {ok:true, nb, captured, hash:h};
 }
+
 function resetGo(){
   const n=GO.size;
   gBoard=goNewBoard(n);
-  gTurn='B'; // Black first
+  gTurn='B';
   gCursor={x:Math.floor(n/2), y:Math.floor(n/2)};
   gHist=[];
   gOver=false;
@@ -1403,6 +1355,7 @@ function resetGo(){
   cvGo.setAttribute('tabindex','0'); cvGo.focus();
   renderGo();
 }
+
 function goCommitPlace(x,y){
   const res=goTryPlace(x,y);
   if(!res.ok){
@@ -1425,6 +1378,7 @@ function goCommitPlace(x,y){
   statusGo.textContent = `Lượt ${(gTurn==='B')?'Đen':'Trắng'}. (Bắt: Đen ${gCapB} / Trắng ${gCapW})`;
   renderGo();
 }
+
 function goPass(){
   if(gOver) return;
   gHist.push({
@@ -1440,6 +1394,7 @@ function goPass(){
     statusGo.textContent = `Pass. Lượt ${(gTurn==='B')?'Đen':'Trắng'}.`;
   }
 }
+
 function goUndo(){
   const last=gHist.pop();
   if(!last) return;
@@ -1449,6 +1404,7 @@ function goUndo(){
   statusGo.textContent = `Undo. Lượt ${(gTurn==='B')?'Đen':'Trắng'}. (Bắt: Đen ${gCapB} / Trắng ${gCapW})`;
   renderGo();
 }
+
 function renderGo(){
   const n=gBoard.length;
   const W=cvGo.width, H=cvGo.height;
@@ -1458,23 +1414,20 @@ function renderGo(){
   const offX=Math.floor((W - cell*(n-1))/2);
   const offY=Math.floor((H - cell*(n-1))/2);
 
-  // grid lines
   ctxGo.strokeStyle='#111';
   ctxGo.lineWidth=1;
   for(let i=0;i<n;i++){
-    // horizontal
     ctxGo.beginPath();
     ctxGo.moveTo(offX, offY+i*cell);
     ctxGo.lineTo(offX+(n-1)*cell, offY+i*cell);
     ctxGo.stroke();
-    // vertical
+
     ctxGo.beginPath();
     ctxGo.moveTo(offX+i*cell, offY);
     ctxGo.lineTo(offX+i*cell, offY+(n-1)*cell);
     ctxGo.stroke();
   }
 
-  // stones
   for(let y=0;y<n;y++) for(let x=0;x<n;x++){
     const v=gBoard[y][x];
     if(v==='.') continue;
@@ -1489,13 +1442,13 @@ function renderGo(){
     ctxGo.stroke();
   }
 
-  // cursor box
   const cx=offX+gCursor.x*cell;
   const cy=offY+gCursor.y*cell;
   ctxGo.strokeStyle='#000';
   ctxGo.lineWidth=3;
   ctxGo.strokeRect(cx-cell*0.5, cy-cell*0.5, cell, cell);
 }
+
 cvGo.addEventListener('keydown',(e)=>{
   const n=gBoard.length;
   if(e.key==='ArrowLeft'){ e.preventDefault(); gCursor.x=(gCursor.x+n-1)%n; renderGo(); }
@@ -1506,6 +1459,233 @@ cvGo.addEventListener('keydown',(e)=>{
   if(e.key==='5'){ e.preventDefault(); goPass(); }
   if(e.key==='1'){ e.preventDefault(); resetGo(); }
   if(e.key==='2'){ e.preventDefault(); goUndo(); }
+});
+
+/* =========================
+   SNAKE (Rắn săn mồi)
+========================= */
+const cvSnake = document.getElementById('cvSnake');
+const ctxSnake = cvSnake.getContext('2d');
+const statusSnake = document.getElementById('statusSnake');
+
+const SNAKE = {
+  size: 20,
+  speedMs: 130,
+  walls: true,
+};
+
+let snBody, snDir, snNextDir, snFood, snScore, snTimer, snRunning, snGameOver;
+
+function snakeStop() {
+  if (snTimer) { clearInterval(snTimer); snTimer = null; }
+  snRunning = false;
+}
+
+function resetSnake() {
+  snakeStop();
+  const n = SNAKE.size;
+  const cx = Math.floor(n / 2);
+  const cy = Math.floor(n / 2);
+
+  snBody = [
+    { x: cx - 1, y: cy },
+    { x: cx,     y: cy },
+    { x: cx + 1, y: cy },
+  ];
+  snDir = { x: 1, y: 0 };
+  snNextDir = { x: 1, y: 0 };
+  snScore = 0;
+  snRunning = false;
+  snGameOver = false;
+
+  placeFood();
+  cvSnake.setAttribute('tabindex', '0');
+  cvSnake.focus();
+  updateSnakeStatus("OK để bắt đầu • D-pad đổi hướng");
+  renderSnake();
+}
+
+function snakeStart() {
+  if (snGameOver || snRunning) return;
+  snRunning = true;
+  snTimer = setInterval(snakeTick, SNAKE.speedMs);
+}
+
+function snakeTogglePause() {
+  if (snGameOver) return;
+  if (snRunning) {
+    snakeStop();
+    updateSnakeStatus("Đã pause • 5 để tiếp tục");
+  } else {
+    snakeStart();
+    updateSnakeStatus("Đang chạy…");
+  }
+}
+
+function snakeRestart() {
+  resetSnake();
+  snakeStart();
+  updateSnakeStatus("Đang chạy…");
+}
+
+function updateSnakeStatus(extra) {
+  const mode = SNAKE.walls ? "Wall" : "Wrap";
+  const base = `Snake ${SNAKE.size}x${SNAKE.size} • Score: ${snScore} • ${mode} • ${SNAKE.speedMs}ms`;
+  statusSnake.textContent = extra ? `${base} — ${extra}` : base;
+}
+
+function placeFood() {
+  const n = SNAKE.size;
+  const occ = new Set(snBody.map(p => p.x + "," + p.y));
+  for (let tries = 0; tries < 5000; tries++) {
+    const x = Math.floor(Math.random() * n);
+    const y = Math.floor(Math.random() * n);
+    if (!occ.has(x + "," + y)) { snFood = { x, y }; return; }
+  }
+  snFood = { x: 0, y: 0 };
+}
+
+function isOpposite(a, b) { return (a.x === -b.x && a.y === -b.y); }
+
+function setDir(dx, dy) {
+  const nd = { x: dx, y: dy };
+  if (isOpposite(nd, snDir)) return;
+  snNextDir = nd;
+}
+
+function snakeTick() {
+  if (snGameOver) return;
+
+  snDir = { ...snNextDir };
+
+  const n = SNAKE.size;
+  const head = snBody[snBody.length - 1];
+  let nx = head.x + snDir.x;
+  let ny = head.y + snDir.y;
+
+  if (SNAKE.walls) {
+    if (nx < 0 || nx >= n || ny < 0 || ny >= n) return gameOver();
+  } else {
+    if (nx < 0) nx = n - 1;
+    if (nx >= n) nx = 0;
+    if (ny < 0) ny = n - 1;
+    if (ny >= n) ny = 0;
+  }
+
+  const willEat = (nx === snFood.x && ny === snFood.y);
+  const tail = snBody[0];
+
+  for (let i = 0; i < snBody.length; i++) {
+    const p = snBody[i];
+    const isTail = (p.x === tail.x && p.y === tail.y);
+    if (!willEat && isTail) continue;
+    if (p.x === nx && p.y === ny) return gameOver();
+  }
+
+  snBody.push({ x: nx, y: ny });
+
+  if (willEat) {
+    snScore++;
+    placeFood();
+    updateSnakeStatus("Ăn!");
+  } else {
+    snBody.shift();
+  }
+
+  renderSnake();
+}
+
+function gameOver() {
+  snGameOver = true;
+  snakeStop();
+  updateSnakeStatus("GAME OVER • OK để chơi lại");
+  renderSnake();
+}
+
+function renderSnake() {
+  const n = SNAKE.size;
+  const W = cvSnake.width, H = cvSnake.height;
+  ctxSnake.clearRect(0, 0, W, H);
+
+  ctxSnake.fillStyle = "#f7f7f7";
+  ctxSnake.fillRect(0, 0, W, H);
+
+  const cell = Math.floor(Math.min(W, H) / n);
+  const offX = Math.floor((W - cell * n) / 2);
+  const offY = Math.floor((H - cell * n) / 2);
+
+  ctxSnake.strokeStyle = "rgba(0,0,0,0.08)";
+  ctxSnake.lineWidth = 1;
+  for (let i = 0; i <= n; i++) {
+    ctxSnake.beginPath();
+    ctxSnake.moveTo(offX + i * cell, offY);
+    ctxSnake.lineTo(offX + i * cell, offY + n * cell);
+    ctxSnake.stroke();
+
+    ctxSnake.beginPath();
+    ctxSnake.moveTo(offX, offY + i * cell);
+    ctxSnake.lineTo(offX + n * cell, offY + i * cell);
+    ctxSnake.stroke();
+  }
+
+  ctxSnake.fillStyle = "#d11";
+  ctxSnake.beginPath();
+  ctxSnake.arc(offX + snFood.x * cell + cell / 2, offY + snFood.y * cell + cell / 2, cell * 0.28, 0, Math.PI * 2);
+  ctxSnake.fill();
+
+  for (let i = 0; i < snBody.length; i++) {
+    const p = snBody[i];
+    const x = offX + p.x * cell;
+    const y = offY + p.y * cell;
+    ctxSnake.fillStyle = (i === snBody.length - 1) ? "#111" : "#333";
+    ctxSnake.fillRect(x + 1, y + 1, cell - 2, cell - 2);
+  }
+
+  if (snGameOver) {
+    ctxSnake.fillStyle = "rgba(255,255,255,0.85)";
+    ctxSnake.fillRect(10, 10, W - 20, 60);
+    ctxSnake.strokeStyle = "#111";
+    ctxSnake.strokeRect(10, 10, W - 20, 60);
+    ctxSnake.fillStyle = "#111";
+    ctxSnake.font = "bold 18px sans-serif";
+    ctxSnake.textAlign = "center";
+    ctxSnake.textBaseline = "middle";
+    ctxSnake.fillText("GAME OVER", W / 2, 30);
+    ctxSnake.font = "14px sans-serif";
+    ctxSnake.fillText("OK để chơi lại", W / 2, 55);
+  }
+}
+
+cvSnake.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); setDir(-1, 0); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); setDir( 1, 0); }
+  if (e.key === 'ArrowUp')    { e.preventDefault(); setDir( 0,-1); }
+  if (e.key === 'ArrowDown')  { e.preventDefault(); setDir( 0, 1); }
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (snGameOver) return snakeRestart();
+    if (!snRunning) return snakeStart();
+  }
+
+  if (e.key === '5') { e.preventDefault(); snakeTogglePause(); }
+
+  if (e.key === '1') { e.preventDefault(); resetSnake(); }
+
+  if (e.key === '2') {
+    e.preventDefault();
+    const arr = [170, 130, 110, 90];
+    const idx = Math.max(0, arr.indexOf(SNAKE.speedMs));
+    SNAKE.speedMs = arr[(idx + 1) % arr.length];
+    if (snRunning) { snakeStop(); snakeStart(); }
+    updateSnakeStatus("Đổi tốc độ");
+  }
+
+  if (e.key === '3') {
+    e.preventDefault();
+    SNAKE.walls = !SNAKE.walls;
+    updateSnakeStatus("Đổi chế độ");
+  }
 });
 
 /* =========================
